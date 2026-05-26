@@ -1,0 +1,406 @@
+:root { 
+    --accent: #00ffcc; 
+    --bg-dark: #121212; 
+    --panel-bg: #1c1c1c; 
+}
+
+body { 
+    margin: 0; 
+    padding: 0; 
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; 
+    background: var(--bg-dark); 
+    color: #fff; 
+    display: flex; 
+    flex-direction: row; 
+    height: 100vh; 
+    overflow: hidden; 
+}
+
+/* Layout Panels */
+#sidebar { 
+    width: 380px; 
+    background: var(--panel-bg); 
+    padding: 20px; 
+    box-shadow: 4px 0 15px rgba(0,0,0,0.5); 
+    display: flex; 
+    flex-direction: column; 
+    gap: 14px; 
+    z-index: 10; 
+    overflow-y: auto; 
+    box-sizing: border-box; 
+    flex-shrink: 0; 
+}
+
+#map-container { 
+    flex-grow: 1; 
+    position: relative; 
+    display: flex; 
+    justify-content: center; 
+    align-items: center; 
+    background: #222; 
+    padding: 15px; 
+    box-sizing: border-box; 
+    overflow: hidden; 
+}
+
+/* Poster Presentation Framing Bounds */
+#poster-wrapper { 
+    position: relative; 
+    box-shadow: 0 15px 40px rgba(0,0,0,0.7); 
+    width: 420px; 
+    height: 560px; 
+    display: flex; 
+    flex-shrink: 0; 
+    overflow: hidden; 
+}
+
+#poster-frame { 
+    width: 100%; 
+    height: 100%; 
+    background: #000000; 
+    display: flex; 
+    flex-direction: column; 
+    position: relative; 
+    box-sizing: border-box; 
+    overflow: hidden; 
+}
+
+/* Locked Passthrough Content Box Wrapper */
+#map-bounding-box { 
+    position: absolute; 
+    top: 0; 
+    left: 0; 
+    width: 100%; 
+    height: calc(100% - 75px); 
+    overflow: hidden; 
+    z-index: 1; 
+}
+
+#map-bounding-box.full-bleed { 
+    height: 100%; 
+}
+
+/* Extended Field of View Scaling Engine Layout */
+#map-wrapper-inner { 
+    position: absolute; 
+    top: 0; 
+    left: 0; 
+    width: 200%; 
+    height: 200%; 
+    transform: scale(0.5); 
+    transform-origin: top left; 
+    overflow: hidden; 
+}
+
+#map { 
+    width: 100%; 
+    height: 100%; 
+}
+
+#map-vignette { 
+    position: absolute; 
+    top: 0; 
+    left: 0; 
+    width: 100%; 
+    height: 100%; 
+    pointer-events: none; 
+    box-shadow: inset 0 0 120px 40px #000000; 
+    z-index: 2; 
+}
+
+/* Typography Layout Elements */
+#poster-label { 
+    height: 75px; 
+    background: #000000; 
+    display: flex; 
+    flex-direction: column; 
+    justify-content: center; 
+    align-items: center; 
+    text-align: center; 
+    padding: 5px 10px; 
+    box-sizing: border-box; 
+    z-index: 3; 
+    position: absolute; 
+    bottom: 0; 
+    left: 0; 
+    width: 100%; 
+}
+
+#poster-label.floating { 
+    bottom: 25px; 
+    left: 50%; 
+    transform: translateX(-50%); 
+    background: rgba(0,0,0,0.85); 
+    border-radius: 8px; 
+    border: 1px solid rgba(255,255,255,0.1); 
+    backdrop-filter: blur(5px); 
+    height: auto; 
+    min-width: 70%; 
+    padding: 12px; 
+}
+
+#poster-label.hidden-element { 
+    display: none !important; 
+}
+
+#label-main { 
+    font-size: 22px; 
+    font-weight: bold; 
+    letter-spacing: 5px; 
+    text-transform: uppercase; 
+    margin: 0; 
+    color: var(--accent); 
+    line-height: 1.1; 
+}
+
+#label-sub { 
+    font-size: 9px; 
+    letter-spacing: 2px; 
+    margin: 4px 0 0 0; 
+    color: #888; 
+    line-height: 1.1; 
+}
+
+/* UI Settings Form Cards styling */
+.settings-card { 
+    background: #262626; 
+    border-radius: 6px; 
+    padding: 12px; 
+    border: 1px solid #333; 
+}
+
+.settings-card h3 { 
+    font-size: 11px; 
+    text-transform: uppercase; 
+    letter-spacing: 1px; 
+    margin: 0 0 10px 0; 
+    color: #bbb; 
+    border-bottom: 1px solid #3d3d3d; 
+    padding-bottom: 4px; 
+}
+
+.input-group { 
+    display: flex; 
+    flex-direction: column; 
+    gap: 4px; 
+    margin-bottom: 10px; 
+}
+
+.row { 
+    display: flex; 
+    gap: 6px; 
+}
+
+.row input { 
+    flex-grow: 1; 
+}
+
+label { 
+    font-size: 10px; 
+    text-transform: uppercase; 
+    color: #888; 
+    letter-spacing: 0.5px; 
+}
+
+input, select { 
+    background: #333; 
+    border: 1px solid #444; 
+    padding: 8px 10px; 
+    color: #fff; 
+    border-radius: 4px; 
+    font-size: 13px; 
+    box-sizing: border-box; 
+    width: 100%; 
+}
+
+/* Range Track Cross-Browser Tuning Stylesheets */
+input[type="range"] { 
+    padding: 0; 
+    background: transparent; 
+    border: none; 
+    cursor: pointer; 
+    height: 28px; 
+    -webkit-appearance: none; 
+    width: 100%; 
+}
+
+input[type="range"]::-webkit-slider-runnable-track { 
+    background: #444; 
+    height: 6px; 
+    border-radius: 3px; 
+}
+
+input[type="range"]::-webkit-slider-thumb { 
+    -webkit-appearance: none; 
+    background: #00ffcc; 
+    height: 16px; 
+    width: 16px; 
+    border-radius: 50%; 
+    margin-top: -5px; 
+    cursor: pointer; 
+}
+
+input[type="color"] { 
+    padding: 2px; 
+    height: 34px; 
+    cursor: pointer; 
+}
+
+/* Palette Swatches Container Blocks System */
+.palette-grid { 
+    display: grid; 
+    grid-template-columns: repeat(4, 1fr); 
+    gap: 8px; 
+    margin-top: 5px; 
+}
+
+.palette-swatch { 
+    border: 2px solid #444; 
+    border-radius: 6px; 
+    height: 44px; 
+    display: flex; 
+    flex-direction: column; 
+    overflow: hidden; 
+    cursor: pointer; 
+    transition: all 0.2s; 
+    position: relative; 
+}
+
+.palette-swatch:hover { 
+    border-color: #fff; 
+    transform: scale(1.04); 
+}
+
+.palette-swatch.active { 
+    border-color: #00ffcc; 
+    box-shadow: 0 0 8px rgba(0,255,204,0.4); 
+}
+
+.swatch-color-bar { 
+    flex-grow: 1; 
+    display: flex; 
+}
+
+.swatch-split { 
+    flex: 1; 
+    height: 100%; 
+}
+
+.swatch-title { 
+    font-size: 8px; 
+    text-align: center; 
+    background: #222; 
+    padding: 2px 0; 
+    text-transform: uppercase; 
+    letter-spacing: 0.5px; 
+    color: #aaa; 
+    overflow: hidden; 
+    text-overflow: ellipsis; 
+    white-space: nowrap; 
+}
+
+#search-results { 
+    background: #333; 
+    border: 1px solid #444; 
+    border-top: none; 
+    max-height: 140px; 
+    overflow-y: auto; 
+    display: none; 
+    position: absolute; 
+    width: calc(100% - 40px); 
+    z-index: 20; 
+    box-shadow: 0 4px 12px rgba(0,0,0,0.5); 
+}
+
+.search-item { 
+    padding: 8px 10px; 
+    cursor: pointer; 
+    font-size: 12px; 
+    border-bottom: 1px solid #262626; 
+    overflow: hidden; 
+    text-overflow: ellipsis; 
+    white-space: nowrap; 
+}
+
+.search-item:hover { 
+    background: #444; 
+    color: #00ffcc; 
+}
+
+.toggle-row { 
+    display: flex; 
+    align-items: center; 
+    justify-content: space-between; 
+    padding: 4px 0; 
+}
+
+button { 
+    background: #3d3d3d; 
+    color: #fff; 
+    border: 1px solid #555; 
+    padding: 8px 12px; 
+    font-weight: bold; 
+    border-radius: 4px; 
+    cursor: pointer; 
+    font-size: 11px; 
+    text-transform: uppercase; 
+}
+
+button:hover { 
+    border-color: #00ffcc; 
+}
+
+.btn-accent { 
+    background: #00ffcc; 
+    color: #000; 
+    border: none; 
+}
+
+.btn-accent:hover { 
+    background: #00e6b8; 
+}
+
+.btn-download { 
+    background: #27ae60; 
+    color: #fff; 
+    border: none; 
+    padding: 12px; 
+    width: 100%; 
+    font-size: 13px; 
+    margin-top: 5px; 
+}
+
+.editorial-credit-footer { 
+    font-size: 10px; 
+    font-weight: 400; 
+    color: #555555; 
+    text-align: center; 
+    margin-top: auto; 
+    padding-top: 15px; 
+    border-top: 1px dashed #2a2a2a; 
+    line-height: 1.6; 
+    letter-spacing: 0.5px; 
+}
+
+.editorial-credit-footer a { 
+    color: #666666; 
+    text-decoration: none; 
+    transition: color 0.2s; 
+    font-weight: 500; 
+}
+
+.editorial-credit-footer a:hover { 
+    color: #00ffcc; 
+}
+
+/* Mobile Media Breakpoint Constraints */
+@media (max-width: 768px) {
+    body { flex-direction: column; overflow-y: auto !important; height: auto !important; }
+    #sidebar { width: 100% !important; height: auto !important; order: 2; overflow-y: visible !important; padding: 15px; box-shadow: none; }
+    #map-container { height: 500px; order: 1; flex-grow: 0; padding: 10px; overflow: hidden; }
+    #poster-wrapper { width: 300px; height: 400px; }
+    #poster-label { height: 65px; }
+    #label-main { font-size: 16px; letter-spacing: 3px; }
+    #label-sub { font-size: 8px; }
+    #search-results { width: calc(100% - 70px); }
+}
