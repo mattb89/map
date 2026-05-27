@@ -1,5 +1,5 @@
 /**
- * CityMapper Studio Pro Engine Logic Controller Module v15.2
+ * CityMapper Studio Pro Engine Logic Controller Module v15.3
  * Production Modular Guarded Architecture System
  */
 
@@ -17,7 +17,7 @@ const themePresets = {
     'warm-terracotta': { title: 'Clay', bg: '#f4ebe1', highway: '#b85032', roads: '#d99b77', buildings: '#ebd0be', water: '#e0c3b1', parks: '#e3dfd5', trains: '#823720', textMain: '#612312', textSub: '#9c6f59' }
 };
 
-// MASTER INITIALIZATION GUARD: Boots only when HTML divs are constructed
+// MASTER INITIALIZATION GUARD: Boots up logic bridges when DOM targets are fully ready
 document.addEventListener("DOMContentLoaded", () => {
     
     map = new maplibregl.Map({
@@ -29,10 +29,10 @@ document.addEventListener("DOMContentLoaded", () => {
         preserveDrawingBuffer: true
     });
 
-    // Clean, single-action listeners completely free of layout collision loops
     map.on('load', () => { 
         executeVectorStyleOverrides(); 
         generateVisualSwatches();
+        bindUIControlsProgrammatically(); // FIXED: Hooks programmatic listeners securely into local workspace
         setTimeout(() => { selectSwatchTheme('cyber-neon'); }, 200);
     });
 
@@ -40,6 +40,37 @@ document.addEventListener("DOMContentLoaded", () => {
         executeVectorStyleOverrides();
     });
 });
+
+// FIXED PROGRAMMATIC BINDINGS LINK: Connects inputs securely without relying on global HTML window contexts
+function bindUIControlsProgrammatically() {
+    const triggerInputs = [
+        'text-visible-toggle', 'text-main-input', 'text-sub-input', 'font-select',
+        'size-font-main', 'letter-spacing-main', 'text-position-toggle', 'width-highways',
+        'style-soft-edges', 'vignette-intensity', 'color-bg', 'color-highways',
+        'color-roads', 'color-buildings', 'color-water', 'color-parks', 'color-trains',
+        'color-text-main', 'color-text-sub'
+    ];
+
+    triggerInputs.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) {
+            el.addEventListener('input', triggerUIDebounce);
+            el.addEventListener('change', triggerUIDebounce);
+        }
+    });
+
+    const layerToggles = ['layer-highways', 'layer-roads', 'layer-buildings', 'layer-water', 'layer-parks', 'layer-trains', 'layer-labels'];
+    layerToggles.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.addEventListener('change', toggleMapLayers);
+    });
+
+    const btnSearch = document.getElementById('btn-search');
+    if (btnSearch) btnSearch.addEventListener('click', searchLocation);
+
+    const btnExport = document.getElementById('btn-export');
+    if (btnExport) btnExport.addEventListener('click', processExportPipeline);
+}
 
 function executeVectorStyleOverrides() {
     if (!map || !map.isStyleLoaded()) return;
@@ -304,13 +335,6 @@ async function searchLocation() {
         console.error("Geocoding lookup error: ", err);
     }
 }
-
-document.addEventListener('click', (e) => {
-    const resultsBox = document.getElementById('search-results');
-    if (resultsBox && e.target.id !== 'search-input') {
-        resultsBox.style.display = 'none';
-    }
-});
 
 function processExportPipeline() {
     if (!map) return;
