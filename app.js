@@ -391,21 +391,48 @@ document.addEventListener('click', (e) => {
 function processExportPipeline() {
     const map = window.mapInstance;
     if (!map) return;
+    
     const exportResMode = document.getElementById('export-resolution').value;
     const exportBtn = document.getElementById('btn-export');
     
-    exportBtn.innerText = "Processing Matrix...";
+    exportBtn.innerText = "Compiling Print File...";
     exportBtn.disabled = true;
 
-    const renderMultiplier = (exportResMode === 'print-high') ? 4 : 1.5;
+    // 1. Establish pristine high-resolution print dimensions
+    const baseWidth = 420;
+    const baseHeight = 560;
+    const multiplier = (exportResMode === 'print-high') ? 4 : 1.5;
+    
+    const targetWidth = baseWidth * multiplier;
+    const targetHeight = baseHeight * multiplier;
 
-    setTimeout(() => {
+    // Capture original mobile layouts so we can restore them seamlessly later
+    const wrapper = document.getElementById('poster-wrapper');
+    const innerWrapper = document.getElementById('map-wrapper-inner');
+    const mapDiv = document.getElementById('map');
+    
+    const origWrapperStyle = wrapper.style.cssText;
+    const origInnerStyle = innerWrapper.style.cssText;
+    const origMapStyle = mapDiv.style.cssText;
+
+    // 2. Temporarily smash layout elements to true full-res pixel limits
+    // This forces WebGL to draw at native, crystal-clear print boundaries
+    wrapper.style.width = `${targetWidth}px`;
+    wrapper.style.height = `${targetHeight}px`;
+    innerWrapper.style.width = '100%';
+    innerWrapper.style.height = '100%';
+    innerWrapper.style.transform = 'none';
+    mapDiv.style.width = '100%';
+    mapDiv.style.height = '100%';
+
+    // Signal the MapLibre engine to re-allocate its GPU drawing buffer boundaries
+    map.resize();
+
+    // 3. Wait for the vector engine to completely finish painting the fresh high-res grid
+    map.once('idle', () => {
         try {
             const originalCanvas = map.getCanvas();
             
-            const lockedWidthBase = 420;
-            const lockedHeightBase = 560;
-
             const textVisible = document.getElementById('text-visible-toggle').checked;
             const textFloatToggle = document.getElementById('text-position-toggle').checked;
             const softEdgeToggle = document.getElementById('style-soft-edges').checked;
@@ -414,8 +441,8 @@ function processExportPipeline() {
             const labelBlockHeightSrc = textVisible ? 75 : 0; 
             
             const exportCanvas = document.createElement('canvas');
-            exportCanvas.width = lockedWidthBase * renderMultiplier;
-            exportCanvas.height = lockedHeightBase * renderMultiplier; 
+            exportCanvas.width = targetWidth;
+            exportCanvas.height = targetHeight; 
             const ctx = exportCanvas.getContext('2d');
 
             const bgStyle = document.getElementById('color-bg').value;
@@ -427,75 +454,88 @@ function processExportPipeline() {
             const fontSizeMainSrc = parseInt(document.getElementById('size-font-main').value);
             const letterSpacingSrc = parseInt(document.getElementById('letter-spacing-main').value);
 
+            // Paint solid canvas base background layer
             ctx.fillStyle = bgStyle;
             ctx.fillRect(0, 0, exportCanvas.width, exportCanvas.height);
 
             let mapDestHeight = exportCanvas.height;
             if (textVisible && !textFloatToggle) {
-                mapDestHeight = exportCanvas.height - (labelBlockHeightSrc * renderMultiplier);
+                mapDestHeight = exportCanvas.height - (labelBlockHeightSrc * multiplier);
             }
             
+            // Draw the clean, full-bleed high-res map graphics buffer (Zero Letterboxing)
             ctx.drawImage(originalCanvas, 0, 0, exportCanvas.width, mapDestHeight);
 
+            // Draw vignette edge fades
             if (softEdgeToggle) {
                 ctx.globalCompositeOperation = "source-over";
-                const shadowBorder = (vignetteIntensity / 1.2) * renderMultiplier;
+                const shadowBorder = (vignetteIntensity / 1.2) * multiplier;
                 ctx.strokeStyle = bgStyle;
                 ctx.lineWidth = shadowBorder;
-                ctx.shadowBlur = vignetteIntensity * renderMultiplier;
+                ctx.shadowBlur = vignetteIntensity * multiplier;
                 ctx.shadowColor = bgStyle;
                 ctx.strokeRect(shadowBorder/2, shadowBorder/2, exportCanvas.width - shadowBorder, mapDestHeight - shadowBorder);
                 ctx.shadowBlur = 0; 
             }
 
+            // Draw crisp high-res poster typography
             if (textVisible) {
                 ctx.textAlign = 'center';
                 ctx.textBaseline = 'middle';
 
                 if (textFloatToggle) {
-                    const overlayCenterY = exportCanvas.height - (60 * renderMultiplier);
-                    
+                    const overlayCenterY = exportCanvas.height - (60 * multiplier);
                     ctx.fillStyle = "rgba(0,0,0,0.85)";
-                    ctx.fillRect(exportCanvas.width * 0.12, overlayCenterY - (30 * renderMultiplier), exportCanvas.width * 0.76, 65 * renderMultiplier);
+                    ctx.fillRect(exportCanvas.width * 0.12, overlayCenterY - (30 * multiplier), exportCanvas.width * 0.76, 65 * multiplier);
                     
                     ctx.fillStyle = mainTextClass;
-                    ctx.font = `bold ${Math.floor(fontSizeMainSrc * renderMultiplier)}px ${fontSelected}`;
-                    ctx.letterSpacing = `${letterSpacingSrc * renderMultiplier}px`;
-                    ctx.fillText(titleValue, exportCanvas.width / 2, overlayCenterY - (6 * renderMultiplier));
+                    ctx.font = `bold ${Math.floor(fontSizeMainSrc * multiplier)}px ${fontSelected}`;
+                    ctx.letterSpacing = `${letterSpacingSrc * multiplier}px`;
+                    ctx.fillText(titleValue, exportCanvas.width / 2, overlayCenterY - (6 * multiplier));
                     
                     ctx.fillStyle = subTextClass;
-                    ctx.font = `${Math.floor(9 * renderMultiplier)}px ${fontSelected}`;
-                    ctx.letterSpacing = `${2 * renderMultiplier}px`;
-                    ctx.fillText(subtitleValue, exportCanvas.width / 2, overlayCenterY + (14 * renderMultiplier));
+                    ctx.font = `${Math.floor(9 * multiplier)}px ${fontSelected}`;
+                    ctx.letterSpacing = `${2 * multiplier}px`;
+                    ctx.fillText(subtitleValue, exportCanvas.width / 2, overlayCenterY + (14 * multiplier));
                 } else {
                     const bannerCenterY = mapDestHeight + ((exportCanvas.height - mapDestHeight) / 2);
-                    
                     ctx.fillStyle = bgStyle;
                     ctx.fillRect(0, mapDestHeight, exportCanvas.width, exportCanvas.height - mapDestHeight);
 
                     ctx.fillStyle = mainTextClass;
-                    ctx.font = `bold ${Math.floor(fontSizeMainSrc * renderMultiplier)}px ${fontSelected}`;
-                    ctx.letterSpacing = `${letterSpacingSrc * renderMultiplier}px`;
-                    ctx.fillText(titleValue, exportCanvas.width / 2, bannerCenterY - (8 * renderMultiplier));
+                    ctx.font = `bold ${Math.floor(fontSizeMainSrc * multiplier)}px ${fontSelected}`;
+                    ctx.letterSpacing = `${letterSpacingSrc * multiplier}px`;
+                    ctx.fillText(titleValue, exportCanvas.width / 2, bannerCenterY - (8 * multiplier));
                     
                     ctx.fillStyle = subTextClass;
-                    ctx.font = `${Math.floor(9 * renderMultiplier)}px ${fontSelected}`;
-                    ctx.letterSpacing = `${2 * renderMultiplier}px`;
-                    ctx.fillText(subtitleValue, exportCanvas.width / 2, bannerCenterY + (10 * renderMultiplier));
+                    ctx.font = `${Math.floor(9 * multiplier)}px ${fontSelected}`;
+                    ctx.letterSpacing = `${2 * multiplier}px`;
+                    ctx.fillText(subtitleValue, exportCanvas.width / 2, bannerCenterY + (10 * multiplier));
                 }
             }
 
+            // Trigger asset file generation stream download action
             const downloadLink = document.createElement('a');
             const filenamePrefix = textVisible ? titleValue.replace(/\s+/g, '_') : "Wide_Grid";
             downloadLink.download = `${filenamePrefix}_StudioArt_${exportResMode}.png`;
             downloadLink.href = exportCanvas.toDataURL('image/png');
             downloadLink.click();
+
         } catch (error) {
-            console.error("Export Engine system error: ", error);
+            console.error("Export Pipeline Failure: ", error);
             alert("Export Engine error encountered.");
         } finally {
+            // 4. RESTORE PANELS: Safely return layout structures back to native mobile sizing
+            wrapper.style.cssText = origWrapperStyle;
+            innerWrapper.style.cssText = origInnerStyle;
+            mapDiv.style.cssText = origMapStyle;
+            
+            // Re-sync standard responsive mobile interactive bounds smoothly
+            map.resize();
+            executeVectorStyleOverrides();
+
             exportBtn.innerText = "Generate Art File";
             exportBtn.disabled = false;
         }
-    }, 150);
+    });
 }
