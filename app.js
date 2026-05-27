@@ -1,12 +1,12 @@
 /**
- * CityMapper Studio Pro Engine Logic Controller Module v15.5
+ * CityMapper Studio Pro Engine Logic Controller Module v15.6
  * Production Modular Guarded Architecture System
  */
 
 // Global App State Scope
 window.mapInstance = null;
 let uiDebounceTimer = null;
-let isUpdatingStyles = false; // Mutex lock prevents infinite loop rendering cascades
+let isUpdatingStyles = false; // Mutex lock blocks rendering infinite loops cascade
 
 const themePresets = {
     'gold-dark': { title: 'Gold', bg: '#000000', highway: '#d4af37', roads: '#b0912d', buildings: '#423712', water: '#1a170b', parks: '#141a0f', trains: '#7a6221', textMain: '#d4af37', textSub: '#888888' },
@@ -24,7 +24,7 @@ document.addEventListener("DOMContentLoaded", () => {
         container: 'map',
         style: 'https://tiles.openfreemap.org/styles/dark', 
         center: [9.0908, 48.7297], 
-        zoom: 14.1, // High density data threshold baseline lock
+        zoom: 14.1, // High density zoom threshold baseline lock
         attributionControl: false, 
         preserveDrawingBuffer: true
     });
@@ -32,12 +32,10 @@ document.addEventListener("DOMContentLoaded", () => {
     window.mapInstance.on('load', () => { 
         generateVisualSwatches();
         bindUIControlsProgrammatically(); 
-        executeVectorStyleOverrides();
         // Force rendering state sync on initial mount sequence
         setTimeout(() => { selectSwatchTheme('cyber-neon'); }, 250);
     });
 
-    // Clean execution target hooks free of event loops cascade breaks
     window.mapInstance.on('styledata', () => {
         if (!isUpdatingStyles) executeVectorStyleOverrides();
     });
@@ -133,7 +131,7 @@ function executeVectorStyleOverrides() {
                 'interpolate', ['linear'], ['zoom'],
                 1, 0.1,   
                 10, 0.2,  
-                14, 0.45 // Keeps minor grids delicate alongside 200% presentation rules
+                14, 0.45
             ]);
         }
     });
@@ -148,6 +146,7 @@ function triggerUIDebounce() {
     }, 30);
 }
 
+// FIXED DOM TREE MAP RE-RENDER: Captures typography styling states and forces uniform edge vignette masking
 function renderDOMTypographyUpdates() {
     const bgVal = document.getElementById('color-bg').value;
     const mainTextVal = document.getElementById('color-text-main').value;
@@ -200,11 +199,12 @@ function renderDOMTypographyUpdates() {
 
     const vignetteToggle = document.getElementById('style-soft-edges').checked;
     const vignetteMask = document.getElementById('map-vignette');
-    const vignetteIntensity = document.getElementById('vignette-intensity').value;
+    const vignetteIntensity = parseInt(document.getElementById('vignette-intensity').value);
     
+    // FIXED VIGNETTE GEOMETRY: Tweaked choke metrics to give a flat velvet perimeter fade across all four sides
     if (vignetteToggle) {
         vignetteMask.style.display = "block";
-        vignetteMask.style.boxShadow = `inset 0 0 ${vignetteIntensity}px ${Math.floor(vignetteIntensity/2.5)}px ${bgVal}`;
+        vignetteMask.style.boxShadow = `inset 0 0 ${vignetteIntensity}px ${Math.floor(vignetteIntensity / 3.5)}px ${bgVal}`;
     } else {
         vignetteMask.style.display = "none";
     }
@@ -236,6 +236,7 @@ function generateVisualSwatches() {
     });
 }
 
+// FIXED THEME PRESET SYNC: Explicitly routes typography text colors straight down into DOM variables pass values
 function selectSwatchTheme(key) {
     document.querySelectorAll('.palette-swatch').forEach(s => s.classList.remove('active'));
     const activeSwatch = document.getElementById(`swatch-${key}`);
@@ -249,6 +250,8 @@ function selectSwatchTheme(key) {
     document.getElementById('color-water').value = preset.water;
     document.getElementById('color-parks').value = preset.parks;
     document.getElementById('color-trains').value = preset.trains;
+    
+    // FIXED: Forces font color pickers to instantly load configuration variables matching selected theme row swatches
     document.getElementById('color-text-main').value = preset.textMain;
     document.getElementById('color-text-sub').value = preset.textSub;
 
@@ -282,7 +285,7 @@ function toggleMapLayers() {
         if (isBuildingRegex.test(layer.id) || (layer.source-layer && isBuildingRegex.test(layer.source-layer))) {
             map.setLayoutProperty(layer.id, 'visibility', showBuildings ? 'visible' : 'none');
         }
-        if (isWaterRegex.test(layer.id)) {
+        if (isWaterRegex.test(layer.id) || (layer.source-layer && isWaterRegex.test(layer.source-layer))) {
             map.setLayoutProperty(layer.id, 'visibility', showWater ? 'visible' : 'none');
         }
         if (isParkRegex.test(layer.id)) {
