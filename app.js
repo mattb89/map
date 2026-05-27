@@ -1,5 +1,5 @@
 /**
- * CityMapper Studio Pro Engine Logic Controller Module v15.9
+ * CityMapper Studio Pro Engine Logic Controller Module v16.0
  * Production Modular Guarded Architecture System - Synchronized State Pass
  */
 
@@ -38,7 +38,6 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     });
 
-    // FIXED ASYNC BRIDGE: Forces vector colors AND layout typography to re-align instantly on any engine update
     window.mapInstance.on('styledata', () => {
         if (!isUpdatingStyles) {
             executeVectorStyleOverrides();
@@ -114,7 +113,8 @@ function executeVectorStyleOverrides() {
                 map.setPaintProperty(layer.id, 'fill-color', bgStyleVal);
             }
         }
-        if (isBuildingRegex.test(layer.id) || (layer.source-layer && isBuildingRegex.test(layer.source-layer))) {
+        // FIXED: Replaced hyphenated property keys with native camelCase syntax
+        if (isBuildingRegex.test(layer.id) || (layer.sourceLayer && isBuildingRegex.test(layer.sourceLayer))) {
             map.setPaintProperty(layer.id, 'fill-color', buildingColorVal);
         }
         if (isWaterRegex.test(layer.id)) {
@@ -254,7 +254,6 @@ function selectSwatchTheme(key) {
     document.getElementById('color-text-main').value = preset.textMain;
     document.getElementById('color-text-sub').value = preset.textSub;
 
-    // Synchronize both pipelines concurrently on selection load
     executeVectorStyleOverrides();
     renderDOMTypographyUpdates();
 }
@@ -283,10 +282,10 @@ function toggleMapLayers() {
         if (layer.type === 'symbol') {
             map.setLayoutProperty(layer.id, 'visibility', showLabels ? 'visible' : 'none');
         }
-        if (isBuildingRegex.test(layer.id) || (layer.source-layer && isBuildingRegex.test(layer.source-layer))) {
+        if (isBuildingRegex.test(layer.id) || (layer.sourceLayer && isBuildingRegex.test(layer.sourceLayer))) {
             map.setLayoutProperty(layer.id, 'visibility', showBuildings ? 'visible' : 'none');
         }
-        if (isWaterRegex.test(layer.id) || (layer.source-layer && isWaterRegex.test(layer.source-layer))) {
+        if (isWaterRegex.test(layer.id) || (layer.sourceLayer && isWaterRegex.test(layer.sourceLayer))) {
             map.setLayoutProperty(layer.id, 'visibility', showWater ? 'visible' : 'none');
         }
         if (isParkRegex.test(layer.id)) {
