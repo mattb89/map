@@ -1,5 +1,5 @@
 /**
- * CityMapper Studio Pro Engine Logic Controller Module v16.0
+ * CityMapper Studio Pro Engine Logic Controller Module v16.1
  * Production Modular Guarded Architecture System - Synchronized State Pass
  */
 
@@ -18,8 +18,9 @@ const themePresets = {
     'warm-terracotta': { title: 'Clay', bg: '#f4ebe1', highway: '#b85032', roads: '#d99b77', buildings: '#ebd0be', water: '#e0c3b1', parks: '#e3dfd5', trains: '#823720', textMain: '#612312', textSub: '#9c6f59' }
 };
 
-// INITIALIZATION PIPELINE: Mounts safe hooks onto the browser load sequence
+// INITIALIZATION PIPELINE: Safe wrapper ensures the HTML is completely parsed before booting MapLibre
 document.addEventListener("DOMContentLoaded", () => {
+    
     window.mapInstance = new maplibregl.Map({
         container: 'map',
         style: 'https://tiles.openfreemap.org/styles/dark', 
@@ -33,11 +34,13 @@ document.addEventListener("DOMContentLoaded", () => {
         generateVisualSwatches();
         bindUIControlsProgrammatically(); 
         
+        // Let everything map out smoothly on initial draw window frame
         requestAnimationFrame(() => {
             selectSwatchTheme('cyber-neon');
         });
     });
 
+    // Unified callback listens to incoming style server mutations safely
     window.mapInstance.on('styledata', () => {
         if (!isUpdatingStyles) {
             executeVectorStyleOverrides();
@@ -105,7 +108,6 @@ function executeVectorStyleOverrides() {
     const layers = map.getStyle().layers;
 
     layers.forEach(layer => {
-        // 1. Base Canvas Background Pass
         if (layer.type === 'background') {
             map.setPaintProperty(layer.id, 'background-color', bgStyleVal);
         }
@@ -115,57 +117,43 @@ function executeVectorStyleOverrides() {
             }
         }
         
-        // Safe string extractor protects loop parsing against empty layout nodes
         const layerSrc = layer.source || '';
         const sourceLayerStr = layer['source-layer'] || layer.sourceLayer || '';
         const fullLayerPath = `${layer.id} ${layerSrc} ${sourceLayerStr}`;
 
-        // 2. Building Structural Footprints
         if (isBuildingRegex.test(fullLayerPath)) {
             if (layer.type === 'fill' || layer.type === 'fill-extrusion') {
                 map.setPaintProperty(layer.id, 'fill-color', buildingColorVal);
                 map.setPaintProperty(layer.id, 'fill-opacity', 0.85);
             }
         }
-        
-        // 3. Hydrology and Waterways Poly-structures
         if (isWaterRegex.test(fullLayerPath)) {
             if (layer.type === 'fill') map.setPaintProperty(layer.id, 'fill-color', waterColorVal);
             if (layer.type === 'line') map.setPaintProperty(layer.id, 'line-color', waterColorVal);
         }
-        
-        // 4. Environmental Parks and Green Fields
         if (isParkRegex.test(fullLayerPath)) {
             if (layer.type === 'fill') map.setPaintProperty(layer.id, 'fill-color', parkColorVal);
         }
-        
-        // 5. Mass Rail Transit Traces
         if (isTrainRegex.test(fullLayerPath)) {
             if (layer.type === 'line') map.setPaintProperty(layer.id, 'line-color', trainColorVal);
         }
-        
-        // 6. Arteriaries & Main Express Highways
         if (layer.type === 'line' && isHighwayRegex.test(fullLayerPath)) {
             map.setPaintProperty(layer.id, 'line-color', highwayColorVal);
             map.setPaintProperty(layer.id, 'line-width', highwaySliderWidth);
         }
-        
-        // 7. Local Residential Secondary Street Matrix
         if (layer.type === 'line' && isMinorRoadRegex.test(fullLayerPath) && !isHighwayRegex.test(fullLayerPath)) {
             map.setPaintProperty(layer.id, 'line-color', roadColorVal);
             map.setPaintProperty(layer.id, 'line-width', [
                 'interpolate', ['linear'], ['zoom'],
                 1, 0.1,   
-                10, 0.25,  
-                14, 0.55
+                10, 0.2,  
+                14, 0.45
             ]);
         }
     });
 
     isUpdatingStyles = false; 
 }
-
-
 
 function triggerUIDebounce() {
     clearTimeout(uiDebounceTimer);
@@ -191,47 +179,54 @@ function renderDOMTypographyUpdates() {
     const textColorRow = document.getElementById('text-color-picker-row');
 
     if (textVisible) {
-        typographyControls.style.display = "block";
-        textColorRow.style.display = "flex";
-        labelBlock.classList.remove('hidden-element');
+        if (typographyControls) typographyControls.style.display = "block";
+        if (textColorRow) textColorRow.style.display = "flex";
+        if (labelBlock) labelBlock.classList.remove('hidden-element');
         
         if (textFloatToggle) {
-            labelBlock.classList.add('floating');
-            mapBox.classList.add('full-bleed');
+            if (labelBlock) labelBlock.classList.add('floating');
+            if (mapBox) mapBox.classList.add('full-bleed');
         } else {
-            labelBlock.classList.remove('floating');
-            labelBlock.style.backgroundColor = bgVal;
-            mapBox.classList.remove('full-bleed');
+            if (labelBlock) {
+                labelBlock.classList.remove('floating');
+                labelBlock.style.backgroundColor = bgVal;
+            }
+            if (mapBox) mapBox.classList.remove('full-bleed');
         }
     } else {
-        typographyControls.style.display = "none";
-        textColorRow.style.display = "none";
-        labelBlock.classList.add('hidden-element');
-        mapBox.classList.add('full-bleed');
+        if (typographyControls) typographyControls.style.display = "none";
+        if (textColorRow) textColorRow.style.display = "none";
+        if (labelBlock) labelBlock.classList.add('hidden-element');
+        if (mapBox) mapBox.classList.add('full-bleed');
     }
     
-    document.getElementById('poster-frame').style.backgroundColor = bgVal;
+    const posterFrame = document.getElementById('poster-frame');
+    if (posterFrame) posterFrame.style.backgroundColor = bgVal;
     
     const mainLabel = document.getElementById('label-main');
-    mainLabel.innerText = document.getElementById('text-main-input').value.toUpperCase(); 
-    mainLabel.style.color = mainTextVal;
-    mainLabel.style.fontFamily = fontVal;
-    mainLabel.style.fontSize = `${fontSizeMain}px`;
-    mainLabel.style.letterSpacing = `${letterSpacingMain}px`;
+    if (mainLabel) {
+        mainLabel.innerText = document.getElementById('text-main-input').value.toUpperCase(); 
+        mainLabel.style.color = mainTextVal;
+        mainLabel.style.fontFamily = fontVal;
+        mainLabel.style.fontSize = `${fontSizeMain}px`;
+        mainLabel.style.letterSpacing = `${letterSpacingMain}px`;
+    }
 
     const subLabel = document.getElementById('label-sub');
-    subLabel.innerText = document.getElementById('text-sub-input').value.toUpperCase(); 
-    subLabel.style.color = subTextVal;
-    subLabel.style.fontFamily = fontVal;
+    if (subLabel) {
+        subLabel.innerText = document.getElementById('text-sub-input').value.toUpperCase(); 
+        subLabel.style.color = subTextVal;
+        subLabel.style.fontFamily = fontVal;
+    }
 
     const vignetteToggle = document.getElementById('style-soft-edges').checked;
     const vignetteMask = document.getElementById('map-vignette');
     const vignetteIntensity = parseInt(document.getElementById('vignette-intensity').value);
     
-    if (vignetteToggle) {
+    if (vignetteToggle && vignetteMask) {
         vignetteMask.style.display = "block";
         vignetteMask.style.boxShadow = `inset 0 0 ${vignetteIntensity}px ${Math.floor(vignetteIntensity / 3.5)}px ${bgVal}`;
-    } else {
+    } else if (vignetteMask) {
         vignetteMask.style.display = "none";
     }
 }
@@ -294,10 +289,10 @@ function toggleMapLayers() {
 
     const layers = map.getStyle().layers;
     const isHighwayRegex = /(motorway|trunk|primary|major|expressway|highway|link)/i;
-    const isMinorRoadRegex = /(minor|residential|service|secondary|tertiary|street|road)/i;
+    const isMinorRoadRegex = /(minor|residential|service|secondary|tertiary|street|road|path|track)/i;
     const isBuildingRegex = /(building|3d|structure|extrusion)/i;
-    const isWaterRegex = /(water|stream|river|lake|ocean|sea)/i;
-    const isParkRegex = /(park|leisure|forest|green|nature|landcover|cemetery)/i;
+    const isWaterRegex = /(water|stream|river|lake|ocean|sea|marina)/i;
+    const isParkRegex = /(park|leisure|forest|green|nature|landcover|cemetery|wood|grass)/i;
     const isTrainRegex = /(rail|train|transit|railway|subway)/i;
 
     layers.forEach(layer => {
