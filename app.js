@@ -1,12 +1,12 @@
 /**
- * CityMapper Studio Pro Engine Logic Controller Module v15.3
+ * CityMapper Studio Pro Engine Logic Controller Module v15.4
  * Production Modular Guarded Architecture System
  */
 
-let map;
+// Keep these variables strictly global so all functions can access them
+window.mapInstance = null;
 let uiDebounceTimer = null;
 
-// Premium Preset Master Matrix
 const themePresets = {
     'gold-dark': { title: 'Gold', bg: '#000000', highway: '#d4af37', roads: '#b0912d', buildings: '#423712', water: '#1a170b', parks: '#141a0f', trains: '#7a6221', textMain: '#d4af37', textSub: '#888888' },
     'minimal-gray': { title: 'Charcoal', bg: '#ffffff', highway: '#222222', roads: '#777777', buildings: '#e0e0e0', water: '#f0f0f0', parks: '#ebf2ea', trains: '#bcbcbc', textMain: '#111111', textSub: '#555555' },
@@ -17,10 +17,9 @@ const themePresets = {
     'warm-terracotta': { title: 'Clay', bg: '#f4ebe1', highway: '#b85032', roads: '#d99b77', buildings: '#ebd0be', water: '#e0c3b1', parks: '#e3dfd5', trains: '#823720', textMain: '#612312', textSub: '#9c6f59' }
 };
 
-// MASTER INITIALIZATION GUARD: Boots up logic bridges when DOM targets are fully ready
 document.addEventListener("DOMContentLoaded", () => {
-    
-    map = new maplibregl.Map({
+    // Assign directly to window space so it stays awake globally
+    window.mapInstance = new maplibregl.Map({
         container: 'map',
         style: 'https://tiles.openfreemap.org/styles/dark', 
         center: [9.0908, 48.7297], 
@@ -29,19 +28,22 @@ document.addEventListener("DOMContentLoaded", () => {
         preserveDrawingBuffer: true
     });
 
-    map.on('load', () => { 
-        executeVectorStyleOverrides(); 
+    window.mapInstance.on('load', () => { 
         generateVisualSwatches();
-        bindUIControlsProgrammatically(); // FIXED: Hooks programmatic listeners securely into local workspace
+        bindUIControlsProgrammatically(); 
+        executeVectorStyleOverrides();
         setTimeout(() => { selectSwatchTheme('cyber-neon'); }, 200);
     });
 
-    map.on('moveend', () => {
+    window.mapInstance.on('styledata', () => {
+        executeVectorStyleOverrides();
+    });
+
+    window.mapInstance.on('moveend', () => {
         executeVectorStyleOverrides();
     });
 });
 
-// FIXED PROGRAMMATIC BINDINGS LINK: Connects inputs securely without relying on global HTML window contexts
 function bindUIControlsProgrammatically() {
     const triggerInputs = [
         'text-visible-toggle', 'text-main-input', 'text-sub-input', 'font-select',
@@ -73,6 +75,7 @@ function bindUIControlsProgrammatically() {
 }
 
 function executeVectorStyleOverrides() {
+    const map = window.mapInstance;
     if (!map || !map.isStyleLoaded()) return;
 
     const bgStyleVal = document.getElementById('color-bg').value;
@@ -246,6 +249,7 @@ function selectSwatchTheme(key) {
 }
 
 function toggleMapLayers() {
+    const map = window.mapInstance;
     if (!map || !map.isStyleLoaded()) return;
 
     const showHighways = document.getElementById('layer-highways').checked;
@@ -315,7 +319,7 @@ async function searchLocation() {
             div.className = 'search-item';
             div.innerText = item.display_name;
             div.onclick = () => {
-                if (map) map.flyTo({ center: [parseFloat(item.lon), parseFloat(item.lat)], zoom: 14.1 }); 
+                if (window.mapInstance) window.mapInstance.flyTo({ center: [parseFloat(item.lon), parseFloat(item.lat)], zoom: 14.1 }); 
                 
                 const nameArray = item.display_name.split(',');
                 document.getElementById('text-main-input').value = nameArray[0].trim();
@@ -336,7 +340,15 @@ async function searchLocation() {
     }
 }
 
+document.addEventListener('click', (e) => {
+    const resultsBox = document.getElementById('search-results');
+    if (resultsBox && e.target.id !== 'search-input') {
+        resultsBox.style.display = 'none';
+    }
+});
+
 function processExportPipeline() {
+    const map = window.mapInstance;
     if (!map) return;
     const exportResMode = document.getElementById('export-resolution').value;
     const exportBtn = document.getElementById('btn-export');
