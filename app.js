@@ -129,6 +129,8 @@ function executeVectorStyleOverrides() {
 
         if (isBuildingRegex.test(fullLayerPath)) {
             if (layer.type === 'fill' || layer.type === 'fill-extrusion') {
+                // FIX: Force buildings to remain active down to zoom level 10
+                map.setLayerZoomRange(layer.id, 10, 24);
                 map.setPaintProperty(layer.id, 'fill-color', buildingColorVal);
                 map.setPaintProperty(layer.id, 'fill-opacity', 0.85);
             }
@@ -148,6 +150,9 @@ function executeVectorStyleOverrides() {
             map.setPaintProperty(layer.id, 'line-width', highwaySliderWidth);
         }
         if (layer.type === 'line' && isMinorRoadRegex.test(fullLayerPath) && !isHighwayRegex.test(fullLayerPath)) {
+            // FIX: Force minor roads to remain active down to zoom level 10
+            map.setLayerZoomRange(layer.id, 10, 24);
+            
             map.setPaintProperty(layer.id, 'line-color', roadColorVal);
             map.setPaintProperty(layer.id, 'line-width', [
                 'interpolate', ['linear'], ['zoom'],
