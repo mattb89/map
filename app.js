@@ -1,11 +1,12 @@
 /**
- * CityMapper Studio Pro Engine Logic Controller Module v15.8
- * Production Modular Guarded Architecture System
+ * CityMapper Studio Pro Engine Logic Controller Module v15.9
+ * Production Modular Guarded Architecture System - Synchronized State Pass
  */
 
+// Keep application engine references globally accessible
 window.mapInstance = null;
 let uiDebounceTimer = null;
-let isUpdatingStyles = false;
+let isUpdatingStyles = false; 
 
 const themePresets = {
     'gold-dark': { title: 'Gold', bg: '#000000', highway: '#d4af37', roads: '#b0912d', buildings: '#423712', water: '#1a170b', parks: '#141a0f', trains: '#7a6221', textMain: '#d4af37', textSub: '#888888' },
@@ -17,6 +18,7 @@ const themePresets = {
     'warm-terracotta': { title: 'Clay', bg: '#f4ebe1', highway: '#b85032', roads: '#d99b77', buildings: '#ebd0be', water: '#e0c3b1', parks: '#e3dfd5', trains: '#823720', textMain: '#612312', textSub: '#9c6f59' }
 };
 
+// INITIALIZATION PIPELINE: Mounts safe hooks onto the browser load sequence
 document.addEventListener("DOMContentLoaded", () => {
     window.mapInstance = new maplibregl.Map({
         container: 'map',
@@ -36,8 +38,12 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     });
 
+    // FIXED ASYNC BRIDGE: Forces vector colors AND layout typography to re-align instantly on any engine update
     window.mapInstance.on('styledata', () => {
-        if (!isUpdatingStyles) executeVectorStyleOverrides();
+        if (!isUpdatingStyles) {
+            executeVectorStyleOverrides();
+            renderDOMTypographyUpdates();
+        }
     });
 
     window.mapInstance.on('moveend', () => {
@@ -146,14 +152,12 @@ function triggerUIDebounce() {
     }, 30);
 }
 
-// OPTIMIZED MASTER RENDERER: Synchronizes current style adjustments across both typography blocks and vignettes
-function renderDOMTypographyUpdates(forcedColors = null) {
-    // FIXED: If forced colors from theme picker exist, favor them over slow input data registers
+function renderDOMTypographyUpdates() {
     const bgVal = document.getElementById('color-bg').value;
-    const mainTextVal = forcedColors ? forcedColors.textMain : document.getElementById('color-text-main').value;
-    const subTextVal = forcedColors ? forcedColors.textSub : document.getElementById('color-text-sub').value;
-    
+    const mainTextVal = document.getElementById('color-text-main').value;
+    const subTextVal = document.getElementById('color-text-sub').value;
     const fontVal = document.getElementById('font-select').value;
+    
     const fontSizeMain = document.getElementById('size-font-main').value;
     const letterSpacingMain = document.getElementById('letter-spacing-main').value;
     
@@ -202,15 +206,12 @@ function renderDOMTypographyUpdates(forcedColors = null) {
     const vignetteMask = document.getElementById('map-vignette');
     const vignetteIntensity = parseInt(document.getElementById('vignette-intensity').value);
     
-    // FIXED CHOKE METRICS: Forces smooth velvet perimeter soft bleed edges around the entire artwork box
     if (vignetteToggle) {
         vignetteMask.style.display = "block";
         vignetteMask.style.boxShadow = `inset 0 0 ${vignetteIntensity}px ${Math.floor(vignetteIntensity / 3.5)}px ${bgVal}`;
     } else {
         vignetteMask.style.display = "none";
     }
-
-    executeVectorStyleOverrides();
 }
 
 function generateVisualSwatches() {
@@ -253,10 +254,9 @@ function selectSwatchTheme(key) {
     document.getElementById('color-text-main').value = preset.textMain;
     document.getElementById('color-text-sub').value = preset.textSub;
 
-    // FIXED SWITCH PIPELINE: Bypasses async input lags by directly feeding forced preset color states into layout
-    requestAnimationFrame(() => {
-        renderDOMTypographyUpdates({ textMain: preset.textMain, textSub: preset.textSub });
-    });
+    // Synchronize both pipelines concurrently on selection load
+    executeVectorStyleOverrides();
+    renderDOMTypographyUpdates();
 }
 
 function toggleMapLayers() {
@@ -304,9 +304,8 @@ function toggleMapLayers() {
         }
     });
     
-    requestAnimationFrame(() => {
-        renderDOMTypographyUpdates();
-    });
+    executeVectorStyleOverrides();
+    renderDOMTypographyUpdates();
 }
 
 async function searchLocation() {
@@ -345,10 +344,8 @@ async function searchLocation() {
                 document.getElementById('text-sub-input').value = `${(nameArray[2] || nameArray[1] || '').trim().toUpperCase()} | ${Math.abs(lat).toFixed(4)}° ${latDir}, ${Math.abs(lon).toFixed(4)}° ${lonDir}`;
                 
                 resultsBox.style.display = 'none';
-                
-                requestAnimationFrame(() => {
-                    renderDOMTypographyUpdates();
-                });
+                executeVectorStyleOverrides();
+                renderDOMTypographyUpdates();
             };
             resultsBox.appendChild(div);
         });
