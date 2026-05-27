@@ -1,11 +1,12 @@
 /**
- * CityMapper Studio Pro Engine Logic Controller Module v15.4
+ * CityMapper Studio Pro Engine Logic Controller Module v15.5
  * Production Modular Guarded Architecture System
  */
 
-// Keep these variables strictly global so all functions can access them
+// Global App State Scope
 window.mapInstance = null;
 let uiDebounceTimer = null;
+let isUpdatingStyles = false; // Mutex lock prevents infinite loop rendering cascades
 
 const themePresets = {
     'gold-dark': { title: 'Gold', bg: '#000000', highway: '#d4af37', roads: '#b0912d', buildings: '#423712', water: '#1a170b', parks: '#141a0f', trains: '#7a6221', textMain: '#d4af37', textSub: '#888888' },
@@ -17,13 +18,13 @@ const themePresets = {
     'warm-terracotta': { title: 'Clay', bg: '#f4ebe1', highway: '#b85032', roads: '#d99b77', buildings: '#ebd0be', water: '#e0c3b1', parks: '#e3dfd5', trains: '#823720', textMain: '#612312', textSub: '#9c6f59' }
 };
 
+// INITIALIZATION PIPELINE: Mounts safe hooks onto the browser load sequence
 document.addEventListener("DOMContentLoaded", () => {
-    // Assign directly to window space so it stays awake globally
     window.mapInstance = new maplibregl.Map({
         container: 'map',
         style: 'https://tiles.openfreemap.org/styles/dark', 
         center: [9.0908, 48.7297], 
-        zoom: 14.1, 
+        zoom: 14.1, // High density data threshold baseline lock
         attributionControl: false, 
         preserveDrawingBuffer: true
     });
@@ -32,15 +33,17 @@ document.addEventListener("DOMContentLoaded", () => {
         generateVisualSwatches();
         bindUIControlsProgrammatically(); 
         executeVectorStyleOverrides();
-        setTimeout(() => { selectSwatchTheme('cyber-neon'); }, 200);
+        // Force rendering state sync on initial mount sequence
+        setTimeout(() => { selectSwatchTheme('cyber-neon'); }, 250);
     });
 
+    // Clean execution target hooks free of event loops cascade breaks
     window.mapInstance.on('styledata', () => {
-        executeVectorStyleOverrides();
+        if (!isUpdatingStyles) executeVectorStyleOverrides();
     });
 
     window.mapInstance.on('moveend', () => {
-        executeVectorStyleOverrides();
+        if (!isUpdatingStyles) executeVectorStyleOverrides();
     });
 });
 
@@ -76,7 +79,9 @@ function bindUIControlsProgrammatically() {
 
 function executeVectorStyleOverrides() {
     const map = window.mapInstance;
-    if (!map || !map.isStyleLoaded()) return;
+    if (!map || !map.isStyleLoaded() || isUpdatingStyles) return;
+
+    isUpdatingStyles = true; // Lock the mutex gate to stop rendering infinite loops
 
     const bgStyleVal = document.getElementById('color-bg').value;
     const highwayColorVal = document.getElementById('color-highways').value;
@@ -127,11 +132,13 @@ function executeVectorStyleOverrides() {
             map.setPaintProperty(layer.id, 'line-width', [
                 'interpolate', ['linear'], ['zoom'],
                 1, 0.1,   
-                10, 0.25,  
-                14, 0.45
+                10, 0.2,  
+                14, 0.45 // Keeps minor grids delicate alongside 200% presentation rules
             ]);
         }
     });
+
+    isUpdatingStyles = false; // Open the gate back up cleanly
 }
 
 function triggerUIDebounce() {
@@ -353,7 +360,7 @@ function processExportPipeline() {
     const exportResMode = document.getElementById('export-resolution').value;
     const exportBtn = document.getElementById('btn-export');
     
-    exportBtn.innerText = "Processing Matrix...";
+    exportBtn.innerText = "Compiling Print Grid...";
     exportBtn.disabled = true;
 
     const renderMultiplier = (exportResMode === 'print-high') ? 4 : 1.5;
