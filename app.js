@@ -1,12 +1,11 @@
 /**
- * CityMapper Studio Pro Engine Logic Controller Module v15.6
+ * CityMapper Studio Pro Engine Logic Controller Module v15.7
  * Production Modular Guarded Architecture System
  */
 
-// Global App State Scope
 window.mapInstance = null;
 let uiDebounceTimer = null;
-let isUpdatingStyles = false; // Mutex lock blocks rendering infinite loops cascade
+let isUpdatingStyles = false;
 
 const themePresets = {
     'gold-dark': { title: 'Gold', bg: '#000000', highway: '#d4af37', roads: '#b0912d', buildings: '#423712', water: '#1a170b', parks: '#141a0f', trains: '#7a6221', textMain: '#d4af37', textSub: '#888888' },
@@ -18,13 +17,12 @@ const themePresets = {
     'warm-terracotta': { title: 'Clay', bg: '#f4ebe1', highway: '#b85032', roads: '#d99b77', buildings: '#ebd0be', water: '#e0c3b1', parks: '#e3dfd5', trains: '#823720', textMain: '#612312', textSub: '#9c6f59' }
 };
 
-// INITIALIZATION PIPELINE: Mounts safe hooks onto the browser load sequence
 document.addEventListener("DOMContentLoaded", () => {
     window.mapInstance = new maplibregl.Map({
         container: 'map',
         style: 'https://tiles.openfreemap.org/styles/dark', 
         center: [9.0908, 48.7297], 
-        zoom: 14.1, // High density zoom threshold baseline lock
+        zoom: 14.1, 
         attributionControl: false, 
         preserveDrawingBuffer: true
     });
@@ -32,8 +30,11 @@ document.addEventListener("DOMContentLoaded", () => {
     window.mapInstance.on('load', () => { 
         generateVisualSwatches();
         bindUIControlsProgrammatically(); 
-        // Force rendering state sync on initial mount sequence
-        setTimeout(() => { selectSwatchTheme('cyber-neon'); }, 250);
+        
+        // Boot default layout baseline inside a clean frame sequence window thread
+        requestAnimationFrame(() => {
+            selectSwatchTheme('cyber-neon');
+        });
     });
 
     window.mapInstance.on('styledata', () => {
@@ -79,7 +80,7 @@ function executeVectorStyleOverrides() {
     const map = window.mapInstance;
     if (!map || !map.isStyleLoaded() || isUpdatingStyles) return;
 
-    isUpdatingStyles = true; // Lock the mutex gate to stop rendering infinite loops
+    isUpdatingStyles = true; 
 
     const bgStyleVal = document.getElementById('color-bg').value;
     const highwayColorVal = document.getElementById('color-highways').value;
@@ -90,7 +91,7 @@ function executeVectorStyleOverrides() {
     const trainColorVal = document.getElementById('color-trains').value;
     const highwaySliderWidth = parseFloat(document.getElementById('width-highways').value);
 
-    const isHighwayRegex = /(motorway|trunk|primary|major|expressway|highway)/i;
+    const isHighwayRegex = /(motorway|trunk|primary|major|expressway|highway|link)/i;
     const isMinorRoadRegex = /(minor|residential|service|secondary|tertiary|street|road)/i;
     const isBuildingRegex = /(building|3d|structure|extrusion)/i;
     const isWaterRegex = /(water|stream|river|lake|ocean|sea)/i;
@@ -136,7 +137,7 @@ function executeVectorStyleOverrides() {
         }
     });
 
-    isUpdatingStyles = false; // Open the gate back up cleanly
+    isUpdatingStyles = false; 
 }
 
 function triggerUIDebounce() {
@@ -146,7 +147,6 @@ function triggerUIDebounce() {
     }, 30);
 }
 
-// FIXED DOM TREE MAP RE-RENDER: Captures typography styling states and forces uniform edge vignette masking
 function renderDOMTypographyUpdates() {
     const bgVal = document.getElementById('color-bg').value;
     const mainTextVal = document.getElementById('color-text-main').value;
@@ -201,7 +201,6 @@ function renderDOMTypographyUpdates() {
     const vignetteMask = document.getElementById('map-vignette');
     const vignetteIntensity = parseInt(document.getElementById('vignette-intensity').value);
     
-    // FIXED VIGNETTE GEOMETRY: Tweaked choke metrics to give a flat velvet perimeter fade across all four sides
     if (vignetteToggle) {
         vignetteMask.style.display = "block";
         vignetteMask.style.boxShadow = `inset 0 0 ${vignetteIntensity}px ${Math.floor(vignetteIntensity / 3.5)}px ${bgVal}`;
@@ -220,7 +219,7 @@ function generateVisualSwatches() {
     Object.keys(themePresets).forEach(key => {
         const p = themePresets[key];
         const div = document.createElement('div');
-        div.className = `palette-swatch ${key === 'cyber-neon' ? 'active' : ''}`;
+        div.className = `palette-swatch`;
         div.id = `swatch-${key}`;
         div.onclick = () => selectSwatchTheme(key);
 
@@ -236,7 +235,7 @@ function generateVisualSwatches() {
     });
 }
 
-// FIXED THEME PRESET SYNC: Explicitly routes typography text colors straight down into DOM variables pass values
+// PRODUCTION ASYNC REMEDY: Lets input states map to values first, then paints in the next frame tick cleanly
 function selectSwatchTheme(key) {
     document.querySelectorAll('.palette-swatch').forEach(s => s.classList.remove('active'));
     const activeSwatch = document.getElementById(`swatch-${key}`);
@@ -250,12 +249,13 @@ function selectSwatchTheme(key) {
     document.getElementById('color-water').value = preset.water;
     document.getElementById('color-parks').value = preset.parks;
     document.getElementById('color-trains').value = preset.trains;
-    
-    // FIXED: Forces font color pickers to instantly load configuration variables matching selected theme row swatches
     document.getElementById('color-text-main').value = preset.textMain;
     document.getElementById('color-text-sub').value = preset.textSub;
 
-    triggerUIDebounce();
+    // FIXED: Let inputs settle, then paint typography and canvas vector structures concurrently
+    requestAnimationFrame(() => {
+        renderDOMTypographyUpdates();
+    });
 }
 
 function toggleMapLayers() {
@@ -271,7 +271,7 @@ function toggleMapLayers() {
     const showLabels = document.getElementById('layer-labels').checked;
 
     const layers = map.getStyle().layers;
-    const isHighwayRegex = /(motorway|trunk|primary|major|expressway|highway)/i;
+    const isHighwayRegex = /(motorway|trunk|primary|major|expressway|highway|link)/i;
     const isMinorRoadRegex = /(minor|residential|service|secondary|tertiary|street|road)/i;
     const isBuildingRegex = /(building|3d|structure|extrusion)/i;
     const isWaterRegex = /(water|stream|river|lake|ocean|sea)/i;
@@ -302,7 +302,10 @@ function toggleMapLayers() {
             }
         }
     });
-    triggerUIDebounce();
+    
+    requestAnimationFrame(() => {
+        renderDOMTypographyUpdates();
+    });
 }
 
 async function searchLocation() {
@@ -341,7 +344,10 @@ async function searchLocation() {
                 document.getElementById('text-sub-input').value = `${(nameArray[2] || nameArray[1] || '').trim().toUpperCase()} | ${Math.abs(lat).toFixed(4)}° ${latDir}, ${Math.abs(lon).toFixed(4)}° ${lonDir}`;
                 
                 resultsBox.style.display = 'none';
-                triggerUIDebounce();
+                
+                requestAnimationFrame(() => {
+                    renderDOMTypographyUpdates();
+                });
             };
             resultsBox.appendChild(div);
         });
@@ -363,7 +369,7 @@ function processExportPipeline() {
     const exportResMode = document.getElementById('export-resolution').value;
     const exportBtn = document.getElementById('btn-export');
     
-    exportBtn.innerText = "Compiling Print Grid...";
+    exportBtn.innerText = "Processing Matrix...";
     exportBtn.disabled = true;
 
     const renderMultiplier = (exportResMode === 'print-high') ? 4 : 1.5;
