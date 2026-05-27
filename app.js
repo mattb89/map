@@ -96,15 +96,16 @@ function executeVectorStyleOverrides() {
     const highwaySliderWidth = parseFloat(document.getElementById('width-highways').value);
 
     const isHighwayRegex = /(motorway|trunk|primary|major|expressway|highway|link)/i;
-    const isMinorRoadRegex = /(minor|residential|service|secondary|tertiary|street|road)/i;
+    const isMinorRoadRegex = /(minor|residential|service|secondary|tertiary|street|road|path|track)/i;
     const isBuildingRegex = /(building|3d|structure|extrusion)/i;
-    const isWaterRegex = /(water|stream|river|lake|ocean|sea)/i;
-    const isParkRegex = /(park|leisure|forest|green|nature|landcover|cemetery)/i;
+    const isWaterRegex = /(water|stream|river|lake|ocean|sea|marina)/i;
+    const isParkRegex = /(park|leisure|forest|green|nature|landcover|cemetery|wood|grass)/i;
     const isTrainRegex = /(rail|train|transit|railway|subway)/i;
 
     const layers = map.getStyle().layers;
 
     layers.forEach(layer => {
+        // 1. Base Canvas Background Pass
         if (layer.type === 'background') {
             map.setPaintProperty(layer.id, 'background-color', bgStyleVal);
         }
@@ -113,37 +114,58 @@ function executeVectorStyleOverrides() {
                 map.setPaintProperty(layer.id, 'fill-color', bgStyleVal);
             }
         }
-        // FIXED: Replaced hyphenated property keys with native camelCase syntax
-        if (isBuildingRegex.test(layer.id) || (layer.sourceLayer && isBuildingRegex.test(layer.sourceLayer))) {
-            map.setPaintProperty(layer.id, 'fill-color', buildingColorVal);
+        
+        // Safe string extractor protects loop parsing against empty layout nodes
+        const layerSrc = layer.source || '';
+        const sourceLayerStr = layer['source-layer'] || layer.sourceLayer || '';
+        const fullLayerPath = `${layer.id} ${layerSrc} ${sourceLayerStr}`;
+
+        // 2. Building Structural Footprints
+        if (isBuildingRegex.test(fullLayerPath)) {
+            if (layer.type === 'fill' || layer.type === 'fill-extrusion') {
+                map.setPaintProperty(layer.id, 'fill-color', buildingColorVal);
+                map.setPaintProperty(layer.id, 'fill-opacity', 0.85);
+            }
         }
-        if (isWaterRegex.test(layer.id)) {
+        
+        // 3. Hydrology and Waterways Poly-structures
+        if (isWaterRegex.test(fullLayerPath)) {
             if (layer.type === 'fill') map.setPaintProperty(layer.id, 'fill-color', waterColorVal);
             if (layer.type === 'line') map.setPaintProperty(layer.id, 'line-color', waterColorVal);
         }
-        if (isParkRegex.test(layer.id)) {
+        
+        // 4. Environmental Parks and Green Fields
+        if (isParkRegex.test(fullLayerPath)) {
             if (layer.type === 'fill') map.setPaintProperty(layer.id, 'fill-color', parkColorVal);
         }
-        if (isTrainRegex.test(layer.id)) {
+        
+        // 5. Mass Rail Transit Traces
+        if (isTrainRegex.test(fullLayerPath)) {
             if (layer.type === 'line') map.setPaintProperty(layer.id, 'line-color', trainColorVal);
         }
-        if (layer.type === 'line' && isHighwayRegex.test(layer.id)) {
+        
+        // 6. Arteriaries & Main Express Highways
+        if (layer.type === 'line' && isHighwayRegex.test(fullLayerPath)) {
             map.setPaintProperty(layer.id, 'line-color', highwayColorVal);
             map.setPaintProperty(layer.id, 'line-width', highwaySliderWidth);
         }
-        if (layer.type === 'line' && isMinorRoadRegex.test(layer.id) && !isHighwayRegex.test(layer.id)) {
+        
+        // 7. Local Residential Secondary Street Matrix
+        if (layer.type === 'line' && isMinorRoadRegex.test(fullLayerPath) && !isHighwayRegex.test(fullLayerPath)) {
             map.setPaintProperty(layer.id, 'line-color', roadColorVal);
             map.setPaintProperty(layer.id, 'line-width', [
                 'interpolate', ['linear'], ['zoom'],
                 1, 0.1,   
-                10, 0.2,  
-                14, 0.45
+                10, 0.25,  
+                14, 0.55
             ]);
         }
     });
 
     isUpdatingStyles = false; 
 }
+
+
 
 function triggerUIDebounce() {
     clearTimeout(uiDebounceTimer);
