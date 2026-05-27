@@ -1,5 +1,5 @@
 /**
- * CityMapper Studio Pro Engine Logic Controller Module v15.7
+ * CityMapper Studio Pro Engine Logic Controller Module v15.8
  * Production Modular Guarded Architecture System
  */
 
@@ -31,7 +31,6 @@ document.addEventListener("DOMContentLoaded", () => {
         generateVisualSwatches();
         bindUIControlsProgrammatically(); 
         
-        // Boot default layout baseline inside a clean frame sequence window thread
         requestAnimationFrame(() => {
             selectSwatchTheme('cyber-neon');
         });
@@ -147,12 +146,14 @@ function triggerUIDebounce() {
     }, 30);
 }
 
-function renderDOMTypographyUpdates() {
+// OPTIMIZED MASTER RENDERER: Synchronizes current style adjustments across both typography blocks and vignettes
+function renderDOMTypographyUpdates(forcedColors = null) {
+    // FIXED: If forced colors from theme picker exist, favor them over slow input data registers
     const bgVal = document.getElementById('color-bg').value;
-    const mainTextVal = document.getElementById('color-text-main').value;
-    const subTextVal = document.getElementById('color-text-sub').value;
-    const fontVal = document.getElementById('font-select').value;
+    const mainTextVal = forcedColors ? forcedColors.textMain : document.getElementById('color-text-main').value;
+    const subTextVal = forcedColors ? forcedColors.textSub : document.getElementById('color-text-sub').value;
     
+    const fontVal = document.getElementById('font-select').value;
     const fontSizeMain = document.getElementById('size-font-main').value;
     const letterSpacingMain = document.getElementById('letter-spacing-main').value;
     
@@ -201,6 +202,7 @@ function renderDOMTypographyUpdates() {
     const vignetteMask = document.getElementById('map-vignette');
     const vignetteIntensity = parseInt(document.getElementById('vignette-intensity').value);
     
+    // FIXED CHOKE METRICS: Forces smooth velvet perimeter soft bleed edges around the entire artwork box
     if (vignetteToggle) {
         vignetteMask.style.display = "block";
         vignetteMask.style.boxShadow = `inset 0 0 ${vignetteIntensity}px ${Math.floor(vignetteIntensity / 3.5)}px ${bgVal}`;
@@ -235,7 +237,6 @@ function generateVisualSwatches() {
     });
 }
 
-// PRODUCTION ASYNC REMEDY: Lets input states map to values first, then paints in the next frame tick cleanly
 function selectSwatchTheme(key) {
     document.querySelectorAll('.palette-swatch').forEach(s => s.classList.remove('active'));
     const activeSwatch = document.getElementById(`swatch-${key}`);
@@ -252,9 +253,9 @@ function selectSwatchTheme(key) {
     document.getElementById('color-text-main').value = preset.textMain;
     document.getElementById('color-text-sub').value = preset.textSub;
 
-    // FIXED: Let inputs settle, then paint typography and canvas vector structures concurrently
+    // FIXED SWITCH PIPELINE: Bypasses async input lags by directly feeding forced preset color states into layout
     requestAnimationFrame(() => {
-        renderDOMTypographyUpdates();
+        renderDOMTypographyUpdates({ textMain: preset.textMain, textSub: preset.textSub });
     });
 }
 
