@@ -388,7 +388,7 @@ document.addEventListener('click', (e) => {
     }
 });
 
-function processExportPipeline() {
+ function processExportPipeline() {
     const map = window.mapInstance;
     if (!map) return;
     
@@ -398,7 +398,6 @@ function processExportPipeline() {
     exportBtn.innerText = "Compiling Print File...";
     exportBtn.disabled = true;
 
-    // 1. Establish pristine high-resolution print dimensions
     const baseWidth = 420;
     const baseHeight = 560;
     const multiplier = (exportResMode === 'print-high') ? 4 : 1.5;
@@ -406,7 +405,6 @@ function processExportPipeline() {
     const targetWidth = baseWidth * multiplier;
     const targetHeight = baseHeight * multiplier;
 
-    // Capture original mobile layouts so we can restore them seamlessly later
     const wrapper = document.getElementById('poster-wrapper');
     const innerWrapper = document.getElementById('map-wrapper-inner');
     const mapDiv = document.getElementById('map');
@@ -415,8 +413,7 @@ function processExportPipeline() {
     const origInnerStyle = innerWrapper.style.cssText;
     const origMapStyle = mapDiv.style.cssText;
 
-    // 2. Temporarily smash layout elements to true full-res pixel limits
-    // This forces WebGL to draw at native, crystal-clear print boundaries
+    // Temporarily upscale layouts to match high-density canvas limits
     wrapper.style.width = `${targetWidth}px`;
     wrapper.style.height = `${targetHeight}px`;
     innerWrapper.style.width = '100%';
@@ -425,11 +422,10 @@ function processExportPipeline() {
     mapDiv.style.width = '100%';
     mapDiv.style.height = '100%';
 
-    // Signal the MapLibre engine to re-allocate its GPU drawing buffer boundaries
     map.resize();
 
-    // 3. Wait for the vector engine to completely finish painting the fresh high-res grid
-    map.once('idle', () => {
+    // FIXED TIMEOUT PIPELINE: Bypasses ghost idle lockouts with a reliable rendering frame check
+    setTimeout(() => {
         try {
             const originalCanvas = map.getCanvas();
             
@@ -454,7 +450,6 @@ function processExportPipeline() {
             const fontSizeMainSrc = parseInt(document.getElementById('size-font-main').value);
             const letterSpacingSrc = parseInt(document.getElementById('letter-spacing-main').value);
 
-            // Paint solid canvas base background layer
             ctx.fillStyle = bgStyle;
             ctx.fillRect(0, 0, exportCanvas.width, exportCanvas.height);
 
@@ -463,10 +458,8 @@ function processExportPipeline() {
                 mapDestHeight = exportCanvas.height - (labelBlockHeightSrc * multiplier);
             }
             
-            // Draw the clean, full-bleed high-res map graphics buffer (Zero Letterboxing)
             ctx.drawImage(originalCanvas, 0, 0, exportCanvas.width, mapDestHeight);
 
-            // Draw vignette edge fades
             if (softEdgeToggle) {
                 ctx.globalCompositeOperation = "source-over";
                 const shadowBorder = (vignetteIntensity / 1.2) * multiplier;
@@ -478,7 +471,6 @@ function processExportPipeline() {
                 ctx.shadowBlur = 0; 
             }
 
-            // Draw crisp high-res poster typography
             if (textVisible) {
                 ctx.textAlign = 'center';
                 ctx.textBaseline = 'middle';
@@ -514,28 +506,58 @@ function processExportPipeline() {
                 }
             }
 
-            // Trigger asset file generation stream download action
-            const downloadLink = document.createElement('a');
-            const filenamePrefix = textVisible ? titleValue.replace(/\s+/g, '_') : "Wide_Grid";
-            downloadLink.download = `${filenamePrefix}_StudioArt_${exportResMode}.png`;
-            downloadLink.href = exportCanvas.toDataURL('image/png');
-            downloadLink.click();
+            // FIXED SAFARI MOBILE BYPASS: Generates a temporary programmatic overlay viewport
+            const dataURL = exportCanvas.toDataURL('image/png');
+            
+            let modal = document.getElementById('mobile-export-modal');
+            if (!modal) {
+                modal = document.createElement('div');
+                modal.id = 'mobile-export-modal';
+                modal.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(18,18,18,0.95);z-index:99999;display:none;flex-direction:column;align-items:center;justify-content:center;padding:20px;box-sizing:border-box;color:#fff;font-family:-apple-system,BlinkMacSystemFont,sans-serif;';
+                
+                const closeBtn = document.createElement('button');
+                closeBtn.innerText = '✕ Close Preview';
+                closeBtn.style.cssText = 'margin-bottom:15px;background:#333;color:#fff;border:1px solid #555;padding:10px 20px;border-radius:6px;font-weight:bold;font-size:12px;text-transform:uppercase;letter-spacing:1px;';
+                closeBtn.onclick = () => { modal.style.display = 'none'; };
+                
+                const alertInfo = document.createElement('p');
+                alertInfo.innerText = '📸 Print File Compiled!\nLong-press the image below to save it directly to your Photos.';
+                alertInfo.style.cssText = 'text-align:center;font-size:13px;color:#00ffcc;margin:0 0 15px 0;line-height:1.5;font-weight:bold;';
+                
+                const imgFrame = document.createElement('div');
+                imgFrame.id = 'mobile-export-frame';
+                imgFrame.style.cssText = 'max-width:100%;max-height:70vh;box-shadow:0 20px 50px rgba(0,0,0,0.8);border-radius:4px;overflow:hidden;';
+                
+                modal.appendChild(closeBtn);
+                modal.appendChild(alertInfo);
+                modal.appendChild(imgFrame);
+                document.body.appendChild(modal);
+            }
+
+            const imgFrame = document.getElementById('mobile-export-frame');
+            imgFrame.innerHTML = '';
+            const finalPosterImg = document.createElement('img');
+            finalPosterImg.src = dataURL;
+            finalPosterImg.style.cssText = 'width:100%;height:auto;max-height:70vh;display:block;object-fit:contain;';
+            imgFrame.appendChild(finalPosterImg);
+            
+            // Unveil the layout window cleanly
+            modal.style.display = 'flex';
 
         } catch (error) {
-            console.error("Export Pipeline Failure: ", error);
-            alert("Export Engine error encountered.");
+            console.error("Export Engine system failure trace: ", error);
+            alert("Export Engine compilation error encountered.");
         } finally {
-            // 4. RESTORE PANELS: Safely return layout structures back to native mobile sizing
+            // Revert layouts back to standard mobile proportions cleanly
             wrapper.style.cssText = origWrapperStyle;
             innerWrapper.style.cssText = origInnerStyle;
             mapDiv.style.cssText = origMapStyle;
             
-            // Re-sync standard responsive mobile interactive bounds smoothly
             map.resize();
             executeVectorStyleOverrides();
 
             exportBtn.innerText = "Generate Art File";
             exportBtn.disabled = false;
         }
-    });
+    }, 450); // 450ms safety buffer gives WebGL ample room to cycle high-res tile grids cleanly
 }
