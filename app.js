@@ -1,11 +1,14 @@
 /**
- * CityMapper Studio Pro Engine Logic Controller Module v15.0
- * Decoupled Architecture Blueprint Package System
+ * CityMapper Studio Pro Engine Logic Controller Module v15.1
+ * Production Modular Guarded Architecture System
  */
 
-let uiDebounceTimer = null; // Batches rapid range thumb drag adjustments safely
+// Global state variables
+let map;
+let uiDebounceTimer = null;
+let isStyleUpdating = false;
 
-// Static Premium Palette Definitions Matrix Array
+// Premium Preset Master Matrix
 const themePresets = {
     'gold-dark': { title: 'Gold', bg: '#000000', highway: '#d4af37', roads: '#b0912d', buildings: '#423712', water: '#1a170b', parks: '#141a0f', trains: '#7a6221', textMain: '#d4af37', textSub: '#888888' },
     'minimal-gray': { title: 'Charcoal', bg: '#ffffff', highway: '#222222', roads: '#777777', buildings: '#e0e0e0', water: '#f0f0f0', parks: '#ebf2ea', trains: '#bcbcbc', textMain: '#111111', textSub: '#555555' },
@@ -16,17 +19,33 @@ const themePresets = {
     'warm-terracotta': { title: 'Clay', bg: '#f4ebe1', highway: '#b85032', roads: '#d99b77', buildings: '#ebd0be', water: '#e0c3b1', parks: '#e3dfd5', trains: '#823720', textMain: '#612312', textSub: '#9c6f59' }
 };
 
-// Hook asynchronous logic onto completely idle renderer paths safely
-map.on('load', () => { executeVectorStyleOverrides(); });
-map.on('idle', () => { executeVectorStyleOverrides(); });
+// MASTER SECURITY GUARD: Prevents execution until the HTML body is completely built
+document.addEventListener("DOMContentLoaded", () => {
+    
+    // Initialize Map Container safely inside the ready tree
+    map = new maplibregl.Map({
+        container: 'map',
+        style: 'https://tiles.openfreemap.org/styles/dark', 
+        center: [9.0908, 48.7297], 
+        zoom: 14.1, 
+        attributionControl: false, 
+        preserveDrawingBuffer: true
+    });
 
-/**
- * PRODUCTION ARCHITECTURE REMEDY: Sweep geometry channels only when WebGL locks are disengaged
- */
+    // Attach event pipes cleanly to the ready instance
+    map.on('load', () => { executeVectorStyleOverrides(); });
+    map.on('idle', () => { executeVectorStyleOverrides(); });
+
+    // Boot up the visual interface layout components
+    generateVisualSwatches();
+    
+    // Fire default activation state
+    setTimeout(() => { selectSwatchTheme('cyber-neon'); }, 300);
+});
+
 function executeVectorStyleOverrides() {
-    if (!map.isStyleLoaded()) return;
+    if (!map || !map.isStyleLoaded()) return;
 
-    // Pull current custom color variable codes straight from the DOM elements array fields
     const bgStyleVal = document.getElementById('color-bg').value;
     const highwayColorVal = document.getElementById('color-highways').value;
     const roadColorVal = document.getElementById('color-roads').value;
@@ -36,7 +55,6 @@ function executeVectorStyleOverrides() {
     const trainColorVal = document.getElementById('color-trains').value;
     const highwaySliderWidth = parseFloat(document.getElementById('width-highways').value);
 
-    // Structural Layer Wildcard Expression Identifiers
     const isHighwayRegex = /(motorway|trunk|primary|major|expressway|highway)/i;
     const isMinorRoadRegex = /(minor|residential|service|secondary|tertiary|street|road)/i;
     const isBuildingRegex = /(building|3d|structure|extrusion)/i;
@@ -84,14 +102,11 @@ function executeVectorStyleOverrides() {
     });
 }
 
-/**
- * DEBOUNCE ENGINE CALCULATION: Captures rapid mobile range ticks cleanly inside single window block windows
- */
 function triggerUIDebounce() {
     clearTimeout(uiDebounceTimer);
     uiDebounceTimer = setTimeout(() => {
         renderDOMTypographyUpdates();
-    }, 30); // 30ms window optimizes processing cycles cleanly at standard screen refresh frames
+    }, 30);
 }
 
 function renderDOMTypographyUpdates() {
@@ -152,17 +167,15 @@ function renderDOMTypographyUpdates() {
         vignetteMask.style.display = "block";
         vignetteMask.style.boxShadow = `inset 0 0 ${vignetteIntensity}px ${Math.floor(vignetteIntensity/2.5)}px ${bgVal}`;
     } else {
-        vignetteMask.style.none;
+        vignetteMask.style.display = "none";
     }
 
     executeVectorStyleOverrides();
 }
 
-/**
- * UI SWATCH GENERATOR: Renders visual swatch design tokens dynamically onto sidebar container markup
- */
 function generateVisualSwatches() {
     const grid = document.getElementById('palette-container-wrapper');
+    if (!grid) return;
     grid.innerHTML = '';
 
     Object.keys(themePresets).forEach(key => {
@@ -186,7 +199,8 @@ function generateVisualSwatches() {
 
 function selectSwatchTheme(key) {
     document.querySelectorAll('.palette-swatch').forEach(s => s.classList.remove('active'));
-    document.getElementById(`swatch-${key}`).classList.add('active');
+    const activeSwatch = document.getElementById(`swatch-${key}`);
+    if (activeSwatch) activeSwatch.classList.add('active');
 
     const preset = themePresets[key];
     document.getElementById('color-bg').value = preset.bg;
@@ -203,7 +217,7 @@ function selectSwatchTheme(key) {
 }
 
 function toggleMapLayers() {
-    if (!map.isStyleLoaded()) return;
+    if (!map || !map.isStyleLoaded()) return;
 
     const showHighways = document.getElementById('layer-highways').checked;
     const showRoads = document.getElementById('layer-roads').checked;
@@ -272,13 +286,13 @@ async function searchLocation() {
             div.className = 'search-item';
             div.innerText = item.display_name;
             div.onclick = () => {
-                const lat = parseFloat(item.lat);
-                const lon = parseFloat(item.lon);
-                map.flyTo({ center: [lon, lat], zoom: 14.1 }); 
+                if (map) map.flyTo({ center: [parseFloat(item.lon), parseFloat(item.lat)], zoom: 14.1 }); 
                 
                 const nameArray = item.display_name.split(',');
                 document.getElementById('text-main-input').value = nameArray[0].trim();
                 
+                const lat = parseFloat(item.lat);
+                const lon = parseFloat(item.lon);
                 const latDir = lat >= 0 ? 'N' : 'S';
                 const lonDir = lon >= 0 ? 'E' : 'W';
                 document.getElementById('text-sub-input').value = `${(nameArray[2] || nameArray[1] || '').trim().toUpperCase()} | ${Math.abs(lat).toFixed(4)}° ${latDir}, ${Math.abs(lon).toFixed(4)}° ${lonDir}`;
@@ -289,20 +303,19 @@ async function searchLocation() {
             resultsBox.appendChild(div);
         });
     } catch (err) {
-        console.error("Geocoding service stream parsing fault trace: ", err);
+        console.error("Geocoding lookup execution break trace: ", err);
     }
 }
 
 document.addEventListener('click', (e) => {
-    if (e.target.id !== 'search-input') {
-        document.getElementById('search-results').style.display = 'none';
+    const resultsBox = document.getElementById('search-results');
+    if (resultsBox && e.target.id !== 'search-input') {
+        resultsBox.style.display = 'none';
     }
 });
 
-/**
- * EXPORT FILE COMPILER PIPELINE: Assembles pristine canvas layouts with standard 90-degree framing
- */
 function processExportPipeline() {
+    if (!map) return;
     const exportResMode = document.getElementById('export-resolution').value;
     const exportBtn = document.getElementById('btn-export');
     
@@ -339,7 +352,6 @@ function processExportPipeline() {
             const fontSizeMainSrc = parseInt(document.getElementById('size-font-main').value);
             const letterSpacingSrc = parseInt(document.getElementById('letter-spacing-main').value);
 
-            // Force flat rectangular geometry generation commands
             ctx.fillStyle = bgStyle;
             ctx.fillRect(0, 0, exportCanvas.width, exportCanvas.height);
 
@@ -404,7 +416,7 @@ function processExportPipeline() {
             downloadLink.href = exportCanvas.toDataURL('image/png');
             downloadLink.click();
         } catch (error) {
-            console.error("Export System Failure: ", error);
+            console.error("Export Compiler system fail trace: ", error);
             alert("Export Engine error encountered.");
         } finally {
             exportBtn.innerText = "Generate Art File";
@@ -412,7 +424,3 @@ function processExportPipeline() {
         }
     }, 150);
 }
-
-// Global Initialization Runtimes Trigger Pass
-generateVisualSwatches();
-setTimeout(() => { selectSwatchTheme('cyber-neon'); }, 450);
