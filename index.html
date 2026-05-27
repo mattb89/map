@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>CityMapper Studio Masterpiece v15.0 - Modular</title>
+    <title>CityMapper Studio Masterpiece v15.3 - Modular</title>
     <link href="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.css" rel="stylesheet" />
     <link rel="stylesheet" href="styles.css">
     <script src="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.js"></script>
@@ -16,7 +16,7 @@
             <div class="input-group" style="position: relative;">
                 <div class="row">
                     <input type="text" id="search-input" placeholder="Search City, Country..." autocomplete="off">
-                    <button onclick="searchLocation()" class="btn-accent">Find</button>
+                    <button id="btn-search" class="btn-accent">Find</button>
                 </div>
                 <div id="search-results"></div>
             </div>
@@ -31,20 +31,20 @@
             <h3>3. Text Typography</h3>
             <div class="toggle-row" style="margin-bottom: 8px; border-bottom: 1px dashed #3d3d3d; padding-bottom: 8px;">
                 <label for="text-visible-toggle" style="font-weight: bold; color: #fff;">Enable Poster Text Elements</label>
-                <input type="checkbox" id="text-visible-toggle" style="width:auto;" checked onchange="triggerUIDebounce()">
+                <input type="checkbox" id="text-visible-toggle" style="width:auto;" checked>
             </div>
             <div id="typography-controls-wrapper">
                 <div class="input-group">
                     <label>Main Heading Text</label>
-                    <input type="text" id="text-main-input" value="Stuttgart" oninput="triggerUIDebounce()">
+                    <input type="text" id="text-main-input" value="Stuttgart">
                 </div>
                 <div class="input-group">
                     <label>Subtitle Details</label>
-                    <input type="text" id="text-sub-input" value="GERMANY | 48.7297° N, 9.0908° E" oninput="triggerUIDebounce()">
+                    <input type="text" id="text-sub-input" value="GERMANY | 48.7297° N, 9.0908° E">
                 </div>
                 <div class="input-group">
                     <label>Font Family Style</label>
-                    <select id="font-select" onchange="triggerUIDebounce()">
+                    <select id="font-select">
                         <option value="Georgia, serif">Classic Serif (Georgia)</option>
                         <option value="-apple-system, BlinkMacSystemFont, sans-serif" selected>Modern Clean (Sans-Serif)</option>
                         <option value="'Courier New', monospace">Minimalist Tech (Monospace)</option>
@@ -53,16 +53,16 @@
                 <div class="row" style="margin-top: 8px;">
                     <div class="input-group" style="flex:1;">
                         <label>Heading Size</label>
-                        <input type="range" id="size-font-main" min="12" max="44" value="22" oninput="triggerUIDebounce()">
+                        <input type="range" id="size-font-main" min="12" max="44" value="22">
                     </div>
                     <div class="input-group" style="flex:1;">
                         <label>Letter Spacing</label>
-                        <input type="range" id="letter-spacing-main" min="0" max="15" value="5" oninput="triggerUIDebounce()">
+                        <input type="range" id="letter-spacing-main" min="0" max="15" value="5">
                     </div>
                 </div>
                 <div class="toggle-row" style="margin-top: 8px;">
                     <label for="text-position-toggle">Overlay Text On Map</label>
-                    <input type="checkbox" id="text-position-toggle" style="width:auto;" onchange="triggerUIDebounce()">
+                    <input type="checkbox" id="text-position-toggle" style="width:auto;">
                 </div>
             </div>
         </div>
@@ -71,35 +71,35 @@
             <h3>4. Map Geometry Features</h3>
             <div class="input-group" style="margin-bottom: 12px; border-bottom: 1px dashed #3d3d3d; padding-bottom: 8px;">
                 <label>Main Highway Thickness</label>
-                <input type="range" id="width-highways" min="0.5" max="8.0" step="0.1" value="2.5" oninput="triggerUIDebounce()">
+                <input type="range" id="width-highways" min="0.5" max="8.0" step="0.1" value="2.5">
             </div>
             <div class="toggle-row">
                 <label for="layer-highways">Render Primary Highways</label>
-                <input type="checkbox" id="layer-highways" style="width:auto;" checked onchange="toggleMapLayers()">
+                <input type="checkbox" id="layer-highways" style="width:auto;" checked>
             </div>
             <div class="toggle-row">
                 <label for="layer-roads">Render Local Minor Roads</label>
-                <input type="checkbox" id="layer-roads" style="width:auto;" checked onchange="toggleMapLayers()">
+                <input type="checkbox" id="layer-roads" style="width:auto;" checked>
             </div>
             <div class="toggle-row">
                 <label for="layer-buildings">Render Building Footprints</label>
-                <input type="checkbox" id="layer-buildings" style="width:auto;" checked onchange="toggleMapLayers()">
+                <input type="checkbox" id="layer-buildings" style="width:auto;" checked>
             </div>
             <div class="toggle-row">
                 <label for="layer-water">Render Water Polygons</label>
-                <input type="checkbox" id="layer-water" style="width:auto;" checked onchange="toggleMapLayers()">
+                <input type="checkbox" id="layer-water" style="width:auto;" checked>
             </div>
             <div class="toggle-row">
                 <label for="layer-parks">Render Parks & Greenery</label>
-                <input type="checkbox" id="layer-parks" style="width:auto;" checked onchange="toggleMapLayers()">
+                <input type="checkbox" id="layer-parks" style="width:auto;" checked>
             </div>
             <div class="toggle-row">
                 <label for="layer-trains">Render Transit / Train Tracks</label>
-                <input type="checkbox" id="layer-trains" style="width:auto;" checked onchange="toggleMapLayers()">
+                <input type="checkbox" id="layer-trains" style="width:auto;" checked>
             </div>
             <div class="toggle-row">
                 <label for="layer-labels">Show Street/Place Labels</label>
-                <input type="checkbox" id="layer-labels" style="width:auto;" onchange="toggleMapLayers()">
+                <input type="checkbox" id="layer-labels" style="width:auto;">
             </div>
         </div>
 
@@ -107,11 +107,11 @@
             <h3>5. Edge Soft Fades (Vignette)</h3>
             <div class="toggle-row">
                 <label for="style-soft-edges">Enable Soft Blurs</label>
-                <input type="checkbox" id="style-soft-edges" style="width:auto;" checked onchange="triggerUIDebounce()">
+                <input type="checkbox" id="style-soft-edges" style="width:auto;" checked>
             </div>
             <div class="input-group" id="vignette-intensity-group">
                 <label>Vignette Fade Intensity</label>
-                <input type="range" id="vignette-intensity" min="20" max="150" value="70" oninput="triggerUIDebounce()">
+                <input type="range" id="vignette-intensity" min="20" max="150" value="70">
             </div>
         </div>
 
@@ -120,43 +120,43 @@
             <div class="row">
                 <div class="input-group" style="flex:1;">
                     <label>Canvas Base</label>
-                    <input type="color" id="color-bg" value="#08090f" oninput="triggerUIDebounce()">
+                    <input type="color" id="color-bg" value="#08090f">
                 </div>
                 <div class="input-group" style="flex:1;">
                     <label>Highways</label>
-                    <input type="color" id="color-highways" value="#00ffcc" oninput="triggerUIDebounce()">
+                    <input type="color" id="color-highways" value="#00ffcc">
                 </div>
                 <div class="input-group" style="flex:1;">
                     <label>Local Roads</label>
-                    <input type="color" id="color-roads" value="#1a233a" oninput="triggerUIDebounce()">
+                    <input type="color" id="color-roads" value="#1a233a">
                 </div>
             </div>
             <div class="row" style="margin-top: 8px;">
                 <div class="input-group" style="flex:1;">
                     <label>Buildings</label>
-                    <input type="color" id="color-buildings" value="#101524" oninput="triggerUIDebounce()">
+                    <input type="color" id="color-buildings" value="#101524">
                 </div>
                 <div class="input-group" style="flex:1;">
                     <label>Waterways</label>
-                    <input type="color" id="color-water" value="#0d1b2a" oninput="triggerUIDebounce()">
+                    <input type="color" id="color-water" value="#0d1b2a">
                 </div>
                 <div class="input-group" style="flex:1;">
                     <label>Parks/Green</label>
-                    <input type="color" id="color-parks" value="#0a1a15" oninput="triggerUIDebounce()">
+                    <input type="color" id="color-parks" value="#0a1a15">
                 </div>
             </div>
             <div class="row" style="margin-top: 8px;">
                 <div class="input-group" style="flex:1;">
                     <label>Train Lines</label>
-                    <input type="color" id="color-trains" value="#ff0055" oninput="triggerUIDebounce()">
+                    <input type="color" id="color-trains" value="#ff0055">
                 </div>
                 <div class="input-group" style="flex:1;">
                     <label>Heading Text</label>
-                    <input type="color" id="color-text-main" value="#00ffcc" oninput="triggerUIDebounce()">
+                    <input type="color" id="color-text-main" value="#00ffcc">
                 </div>
                 <div class="input-group" style="flex:1;">
                     <label>Subtitle Text</label>
-                    <input type="color" id="color-text-sub" value="#888888" oninput="triggerUIDebounce()">
+                    <input type="color" id="color-text-sub" value="#888888">
                 </div>
             </div>
         </div>
@@ -170,7 +170,7 @@
                     <option value="print-high" selected>Full Res Commercial Print (300 DPI Grid)</option>
                 </select>
             </div>
-            <button class="btn-download btn-accent" id="btn-export" onclick="processExportPipeline()">Generate Art File</button>
+            <button id="btn-export" class="btn-download btn-accent">Generate Art File</button>
         </div>
 
         <div class="editorial-credit-footer">
