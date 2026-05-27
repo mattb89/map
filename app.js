@@ -1,12 +1,10 @@
 /**
- * CityMapper Studio Pro Engine Logic Controller Module v15.1
+ * CityMapper Studio Pro Engine Logic Controller Module v15.2
  * Production Modular Guarded Architecture System
  */
 
-// Global state variables
 let map;
 let uiDebounceTimer = null;
-let isStyleUpdating = false;
 
 // Premium Preset Master Matrix
 const themePresets = {
@@ -19,10 +17,9 @@ const themePresets = {
     'warm-terracotta': { title: 'Clay', bg: '#f4ebe1', highway: '#b85032', roads: '#d99b77', buildings: '#ebd0be', water: '#e0c3b1', parks: '#e3dfd5', trains: '#823720', textMain: '#612312', textSub: '#9c6f59' }
 };
 
-// MASTER SECURITY GUARD: Prevents execution until the HTML body is completely built
+// MASTER INITIALIZATION GUARD: Boots only when HTML divs are constructed
 document.addEventListener("DOMContentLoaded", () => {
     
-    // Initialize Map Container safely inside the ready tree
     map = new maplibregl.Map({
         container: 'map',
         style: 'https://tiles.openfreemap.org/styles/dark', 
@@ -32,15 +29,16 @@ document.addEventListener("DOMContentLoaded", () => {
         preserveDrawingBuffer: true
     });
 
-    // Attach event pipes cleanly to the ready instance
-    map.on('load', () => { executeVectorStyleOverrides(); });
-    map.on('idle', () => { executeVectorStyleOverrides(); });
+    // Clean, single-action listeners completely free of layout collision loops
+    map.on('load', () => { 
+        executeVectorStyleOverrides(); 
+        generateVisualSwatches();
+        setTimeout(() => { selectSwatchTheme('cyber-neon'); }, 200);
+    });
 
-    // Boot up the visual interface layout components
-    generateVisualSwatches();
-    
-    // Fire default activation state
-    setTimeout(() => { selectSwatchTheme('cyber-neon'); }, 300);
+    map.on('moveend', () => {
+        executeVectorStyleOverrides();
+    });
 });
 
 function executeVectorStyleOverrides() {
@@ -303,7 +301,7 @@ async function searchLocation() {
             resultsBox.appendChild(div);
         });
     } catch (err) {
-        console.error("Geocoding lookup execution break trace: ", err);
+        console.error("Geocoding lookup error: ", err);
     }
 }
 
@@ -416,7 +414,7 @@ function processExportPipeline() {
             downloadLink.href = exportCanvas.toDataURL('image/png');
             downloadLink.click();
         } catch (error) {
-            console.error("Export Compiler system fail trace: ", error);
+            console.error("Export Engine system error: ", error);
             alert("Export Engine error encountered.");
         } finally {
             exportBtn.innerText = "Generate Art File";
