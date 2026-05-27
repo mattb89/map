@@ -30,15 +30,21 @@ document.addEventListener("DOMContentLoaded", () => {
         preserveDrawingBuffer: true
     });
 
+
     window.mapInstance.on('load', () => { 
+        // FIX: Reparent the vignette to eliminate mobile subpixel clipping errors
+        const vignette = document.getElementById('map-vignette');
+        const boundingBox = document.getElementById('map-bounding-box');
+        if (vignette && boundingBox) boundingBox.appendChild(vignette);
+
         generateVisualSwatches();
         bindUIControlsProgrammatically(); 
         
-        // Let everything map out smoothly on initial draw window frame
         requestAnimationFrame(() => {
             selectSwatchTheme('cyber-neon');
         });
     });
+
 
     // Unified callback listens to incoming style server mutations safely
     window.mapInstance.on('styledata', () => {
