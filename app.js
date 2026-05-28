@@ -405,10 +405,27 @@ function processExportPipeline() {
     const targetWidth = baseWidth * multiplier;
     const targetHeight = baseHeight * multiplier;
 
-    // FIXED VIEWPORT LOCKOUT: Using position fixed + ultra-low opacity keeps the canvas 
-    // actively inside Safari's layout loop so the GPU processes it immediately.
+    const textVisible = document.getElementById('text-visible-toggle').checked;
+    const textFloatToggle = document.getElementById('text-position-toggle').checked;
+    const softEdgeToggle = document.getElementById('style-soft-edges').checked;
+    const vignetteIntensity = parseInt(document.getElementById('vignette-intensity').value);
+    const labelBlockHeightSrc = textVisible ? 75 : 0; 
+
+    // FIX 1: Calculate the exact map destination height BEFORE building containers
+    let mapDestHeight = targetHeight;
+    if (textVisible && !textFloatToggle) {
+        mapDestHeight = targetHeight - (labelBlockHeightSrc * multiplier);
+    }
+
+    // FIX 2: Dynamic Zoom Balancing auto-calculates the exact framing compensation offset
+    const screenCanvas = mainMap.getCanvas();
+    const scaleFactor = targetWidth / screenCanvas.width;
+    const zoomOffset = Math.log2(scaleFactor);
+    const targetZoom = mainMap.getZoom() + zoomOffset;
+
+    // FIX 3: Force hidden container to match the exact cropped aspect ratio slice
     const hiddenContainer = document.createElement('div');
-    hiddenContainer.style.cssText = `position:fixed; top:0; left:0; width:${targetWidth}px; height:${targetHeight}px; opacity:0.01; pointer-events:none; z-index:-9999;`;
+    hiddenContainer.style.cssText = `position:fixed; top:0; left:0; width:${targetWidth}px; height:${mapDestHeight}px; opacity:0.01; pointer-events:none; z-index:-9999;`;
     document.body.appendChild(hiddenContainer);
 
     try {
@@ -416,19 +433,75 @@ function processExportPipeline() {
             container: hiddenContainer,
             style: mainMap.getStyle(), 
             center: mainMap.getCenter(),
-            zoom: mainMap.getZoom(),
+            zoom: targetZoom,
             attributionControl: false,
             preserveDrawingBuffer: true
+        });
+
+        // FIX 4: Ghost Style Injection guarantees your custom purples & cyans paint onto the high-res tiles
+        tempMap.on('styledata', () => {
+            const bgStyleVal = document.getElementById('color-bg').value;
+            const highwayColorVal = document.getElementById('color-highways').value;
+            const roadColorVal = document.getElementById('color-roads').value;
+            const buildingColorVal = document.getElementById('color-buildings').value;
+            const waterColorVal = document.getElementById('color-water').value;
+            const parkColorVal = document.getElementById('color-parks').value;
+            const trainColorVal = document.getElementById('color-trains').value;
+            const highwaySliderWidth = parseFloat(document.getElementById('width-highways').value);
+
+            const isHighwayRegex = /(motorway|trunk|primary|major|expressway|highway|link)/i;
+            const isMinorRoadRegex = /(minor|residential|service|secondary|tertiary|street|road|path|track)/i;
+            const isBuildingRegex = /(building|3d|structure|extrusion)/i;
+            const isWaterRegex = /(water|stream|river|lake|ocean|sea|marina)/i;
+            const isParkRegex = /(park|leisure|forest|green|nature|landcover|cemetery|wood|grass)/i;
+            const isTrainRegex = /(rail|train|transit|railway|subway)/i;
+
+            const layers = tempMap.getStyle().layers;
+            layers.forEach(layer => {
+                if (layer.type === 'background') tempMap.setPaintProperty(layer.id, 'background-color', bgStyleVal);
+                if (layer.type === 'fill' && (layer.id.includes('land') || layer.id.includes('area') || layer.id.includes('background'))) {
+                    if (!isParkRegex.test(layer.id)) tempMap.setPaintProperty(layer.id, 'fill-color', bgStyleVal);
+                }
+                
+                const layerSrc = layer.source || '';
+                const sourceLayerStr = layer['source-layer'] || layer.sourceLayer || '';
+                const fullLayerPath = `${layer.id} ${layerSrc} ${sourceLayerStr}`;
+
+                if (isBuildingRegex.test(fullLayerPath)) {
+                    if (layer.type === 'fill' || layer.type === 'fill-extrusion') {
+                        tempMap.setPaintProperty(layer.id, 'fill-color', buildingColorVal);
+                        tempMap.setPaintProperty(layer.id, 'fill-opacity', 0.85);
+                    }
+                }
+                if (isWaterRegex.test(fullLayerPath)) {
+                    if (layer.type === 'fill') tempMap.setPaintProperty(layer.id, 'fill-color', waterColorVal);
+                    if (layer.type === 'line') tempMap.setPaintProperty(layer.id, 'line-color', waterColorVal);
+                }
+                if (isParkRegex.test(fullLayerPath)) {
+                    if (layer.type === 'fill') tempMap.setPaintProperty(layer.id, 'fill-color', parkColorVal);
+                }
+                if (isTrainRegex.test(fullLayerPath)) {
+                    if (layer.type === 'line') tempMap.setPaintProperty(layer.id, 'line-color', trainColorVal);
+                }
+                if (layer.type === 'line' && isHighwayRegex.test(fullLayerPath)) {
+                    tempMap.setPaintProperty(layer.id, 'line-color', highwayColorVal);
+                    tempMap.setPaintProperty(layer.id, 'line-width', highwaySliderWidth);
+                }
+                if (layer.type === 'line' && isMinorRoadRegex.test(fullLayerPath) && !isHighwayRegex.test(fullLayerPath)) {
+                    tempMap.setPaintProperty(layer.id, 'line-color', roadColorVal);
+                    tempMap.setPaintProperty(layer.id, 'line-width', [
+                        'interpolate', ['linear'], ['zoom'],
+                        1, 0.1,   
+                        10, 0.2,  
+                        14, 0.45
+                    ]);
+                }
+            });
         });
 
         tempMap.once('idle', () => {
             try {
                 const originalCanvas = tempMap.getCanvas();
-                const textVisible = document.getElementById('text-visible-toggle').checked;
-                const textFloatToggle = document.getElementById('text-position-toggle').checked;
-                const softEdgeToggle = document.getElementById('style-soft-edges').checked;
-                const vignetteIntensity = parseInt(document.getElementById('vignette-intensity').value);
-                const labelBlockHeightSrc = textVisible ? 75 : 0; 
                 
                 const exportCanvas = document.createElement('canvas');
                 exportCanvas.width = targetWidth;
@@ -446,12 +519,8 @@ function processExportPipeline() {
 
                 ctx.fillStyle = bgStyle;
                 ctx.fillRect(0, 0, exportCanvas.width, exportCanvas.height);
-
-                let mapDestHeight = exportCanvas.height;
-                if (textVisible && !textFloatToggle) {
-                    mapDestHeight = exportCanvas.height - (labelBlockHeightSrc * multiplier);
-                }
                 
+                // Draw pristine full-bleed map vector details
                 ctx.drawImage(originalCanvas, 0, 0, exportCanvas.width, mapDestHeight);
 
                 if (softEdgeToggle) {
@@ -502,7 +571,6 @@ function processExportPipeline() {
 
                 const dataURL = exportCanvas.toDataURL('image/png');
                 
-                // FIXED MODAL BOOTSTRAPPER: Explicitly builds out the viewport overlay structure from scratch
                 let modal = document.getElementById('mobile-export-modal');
                 if (!modal) {
                     modal = document.createElement('div');
@@ -557,4 +625,3 @@ function processExportPipeline() {
         alert("Background processing limits encountered.");
     }
 }
-
