@@ -389,15 +389,16 @@ document.addEventListener('click', (e) => {
 });
 
  function processExportPipeline() {
-    const map = window.mapInstance;
-    if (!map) return;
+    const mainMap = window.mapInstance;
+    if (!mainMap) return;
     
     const exportResMode = document.getElementById('export-resolution').value;
     const exportBtn = document.getElementById('btn-export');
     
-    exportBtn.innerText = "Compiling Print File...";
+    exportBtn.innerText = "Cloning Canvas Grid...";
     exportBtn.disabled = true;
 
+    // 1. Calculate absolute target print dimensions
     const baseWidth = 420;
     const baseHeight = 560;
     const multiplier = (exportResMode === 'print-high') ? 4 : 1.5;
@@ -405,159 +406,136 @@ document.addEventListener('click', (e) => {
     const targetWidth = baseWidth * multiplier;
     const targetHeight = baseHeight * multiplier;
 
-    const wrapper = document.getElementById('poster-wrapper');
-    const innerWrapper = document.getElementById('map-wrapper-inner');
-    const mapDiv = document.getElementById('map');
-    
-    const origWrapperStyle = wrapper.style.cssText;
-    const origInnerStyle = innerWrapper.style.cssText;
-    const origMapStyle = mapDiv.style.cssText;
+    // 2. Create the hidden off-screen ghost container element
+    const hiddenContainer = document.createElement('div');
+    hiddenContainer.style.cssText = `position:absolute; top:-9999px; left:-9999px; width:${targetWidth}px; height:${targetHeight}px;`;
+    document.body.appendChild(hiddenContainer);
 
-    // Temporarily upscale layouts to match high-density canvas limits
-    wrapper.style.width = `${targetWidth}px`;
-    wrapper.style.height = `${targetHeight}px`;
-    innerWrapper.style.width = '100%';
-    innerWrapper.style.height = '100%';
-    innerWrapper.style.transform = 'none';
-    mapDiv.style.width = '100%';
-    mapDiv.style.height = '100%';
+    try {
+        // 3. Instantiate a headless map copy inheriting live styles and coordinates
+        const tempMap = new maplibregl.Map({
+            container: hiddenContainer,
+            style: mainMap.getStyle(), 
+            center: mainMap.getCenter(),
+            zoom: mainMap.getZoom(),
+            attributionControl: false,
+            preserveDrawingBuffer: true
+        });
 
-    map.resize();
+        // 4. Wait until the background canvas completely finishes pulling tiles and painting
+        tempMap.once('idle', () => {
+            try {
+                const originalCanvas = tempMap.getCanvas();
+                const textVisible = document.getElementById('text-visible-toggle').checked;
+                const textFloatToggle = document.getElementById('text-position-toggle').checked;
+                const softEdgeToggle = document.getElementById('style-soft-edges').checked;
+                const vignetteIntensity = parseInt(document.getElementById('vignette-intensity').value);
+                const labelBlockHeightSrc = textVisible ? 75 : 0; 
+                
+                const exportCanvas = document.createElement('canvas');
+                exportCanvas.width = targetWidth;
+                exportCanvas.height = targetHeight; 
+                const ctx = exportCanvas.getContext('2d');
 
-    // FIXED TIMEOUT PIPELINE: Bypasses ghost idle lockouts with a reliable rendering frame check
-    setTimeout(() => {
-        try {
-            const originalCanvas = map.getCanvas();
-            
-            const textVisible = document.getElementById('text-visible-toggle').checked;
-            const textFloatToggle = document.getElementById('text-position-toggle').checked;
-            const softEdgeToggle = document.getElementById('style-soft-edges').checked;
-            const vignetteIntensity = parseInt(document.getElementById('vignette-intensity').value);
+                const bgStyle = document.getElementById('color-bg').value;
+                const mainTextClass = document.getElementById('color-text-main').value;
+                const subTextClass = document.getElementById('color-text-sub').value;
+                const titleValue = document.getElementById('text-main-input').value.toUpperCase(); 
+                const subtitleValue = document.getElementById('text-sub-input').value.toUpperCase(); 
+                const fontSelected = document.getElementById('font-select').value;
+                const fontSizeMainSrc = parseInt(document.getElementById('size-font-main').value);
+                const letterSpacingSrc = parseInt(document.getElementById('letter-spacing-main').value);
 
-            const labelBlockHeightSrc = textVisible ? 75 : 0; 
-            
-            const exportCanvas = document.createElement('canvas');
-            exportCanvas.width = targetWidth;
-            exportCanvas.height = targetHeight; 
-            const ctx = exportCanvas.getContext('2d');
+                ctx.fillStyle = bgStyle;
+                ctx.fillRect(0, 0, exportCanvas.width, exportCanvas.height);
 
-            const bgStyle = document.getElementById('color-bg').value;
-            const mainTextClass = document.getElementById('color-text-main').value;
-            const subTextClass = document.getElementById('color-text-sub').value;
-            const titleValue = document.getElementById('text-main-input').value.toUpperCase(); 
-            const subtitleValue = document.getElementById('text-sub-input').value.toUpperCase(); 
-            const fontSelected = document.getElementById('font-select').value;
-            const fontSizeMainSrc = parseInt(document.getElementById('size-font-main').value);
-            const letterSpacingSrc = parseInt(document.getElementById('letter-spacing-main').value);
-
-            ctx.fillStyle = bgStyle;
-            ctx.fillRect(0, 0, exportCanvas.width, exportCanvas.height);
-
-            let mapDestHeight = exportCanvas.height;
-            if (textVisible && !textFloatToggle) {
-                mapDestHeight = exportCanvas.height - (labelBlockHeightSrc * multiplier);
-            }
-            
-            ctx.drawImage(originalCanvas, 0, 0, exportCanvas.width, mapDestHeight);
-
-            if (softEdgeToggle) {
-                ctx.globalCompositeOperation = "source-over";
-                const shadowBorder = (vignetteIntensity / 1.2) * multiplier;
-                ctx.strokeStyle = bgStyle;
-                ctx.lineWidth = shadowBorder;
-                ctx.shadowBlur = vignetteIntensity * multiplier;
-                ctx.shadowColor = bgStyle;
-                ctx.strokeRect(shadowBorder/2, shadowBorder/2, exportCanvas.width - shadowBorder, mapDestHeight - shadowBorder);
-                ctx.shadowBlur = 0; 
-            }
-
-            if (textVisible) {
-                ctx.textAlign = 'center';
-                ctx.textBaseline = 'middle';
-
-                if (textFloatToggle) {
-                    const overlayCenterY = exportCanvas.height - (60 * multiplier);
-                    ctx.fillStyle = "rgba(0,0,0,0.85)";
-                    ctx.fillRect(exportCanvas.width * 0.12, overlayCenterY - (30 * multiplier), exportCanvas.width * 0.76, 65 * multiplier);
-                    
-                    ctx.fillStyle = mainTextClass;
-                    ctx.font = `bold ${Math.floor(fontSizeMainSrc * multiplier)}px ${fontSelected}`;
-                    ctx.letterSpacing = `${letterSpacingSrc * multiplier}px`;
-                    ctx.fillText(titleValue, exportCanvas.width / 2, overlayCenterY - (6 * multiplier));
-                    
-                    ctx.fillStyle = subTextClass;
-                    ctx.font = `${Math.floor(9 * multiplier)}px ${fontSelected}`;
-                    ctx.letterSpacing = `${2 * multiplier}px`;
-                    ctx.fillText(subtitleValue, exportCanvas.width / 2, overlayCenterY + (14 * multiplier));
-                } else {
-                    const bannerCenterY = mapDestHeight + ((exportCanvas.height - mapDestHeight) / 2);
-                    ctx.fillStyle = bgStyle;
-                    ctx.fillRect(0, mapDestHeight, exportCanvas.width, exportCanvas.height - mapDestHeight);
-
-                    ctx.fillStyle = mainTextClass;
-                    ctx.font = `bold ${Math.floor(fontSizeMainSrc * multiplier)}px ${fontSelected}`;
-                    ctx.letterSpacing = `${letterSpacingSrc * multiplier}px`;
-                    ctx.fillText(titleValue, exportCanvas.width / 2, bannerCenterY - (8 * multiplier));
-                    
-                    ctx.fillStyle = subTextClass;
-                    ctx.font = `${Math.floor(9 * multiplier)}px ${fontSelected}`;
-                    ctx.letterSpacing = `${2 * multiplier}px`;
-                    ctx.fillText(subtitleValue, exportCanvas.width / 2, bannerCenterY + (10 * multiplier));
+                let mapDestHeight = exportCanvas.height;
+                if (textVisible && !textFloatToggle) {
+                    mapDestHeight = exportCanvas.height - (labelBlockHeightSrc * multiplier);
                 }
+                
+                // Draw pristine full-bleed background tiles (No mobile screen clipping boundaries!)
+                ctx.drawImage(originalCanvas, 0, 0, exportCanvas.width, mapDestHeight);
+
+                if (softEdgeToggle) {
+                    ctx.globalCompositeOperation = "source-over";
+                    const shadowBorder = (vignetteIntensity / 1.2) * multiplier;
+                    ctx.strokeStyle = bgStyle;
+                    ctx.lineWidth = shadowBorder;
+                    ctx.shadowBlur = vignetteIntensity * multiplier;
+                    ctx.shadowColor = bgStyle;
+                    ctx.strokeRect(shadowBorder/2, shadowBorder/2, exportCanvas.width - shadowBorder, mapDestHeight - shadowBorder);
+                    ctx.shadowBlur = 0; 
+                }
+
+                if (textVisible) {
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+
+                    if (textFloatToggle) {
+                        const overlayCenterY = exportCanvas.height - (60 * multiplier);
+                        ctx.fillStyle = "rgba(0,0,0,0.85)";
+                        ctx.fillRect(exportCanvas.width * 0.12, overlayCenterY - (30 * multiplier), exportCanvas.width * 0.76, 65 * multiplier);
+                        
+                        ctx.fillStyle = mainTextClass;
+                        ctx.font = `bold ${Math.floor(fontSizeMainSrc * multiplier)}px ${fontSelected}`;
+                        ctx.letterSpacing = `${letterSpacingSrc * multiplier}px`;
+                        ctx.fillText(titleValue, exportCanvas.width / 2, overlayCenterY - (6 * multiplier));
+                        
+                        ctx.fillStyle = subTextClass;
+                        ctx.font = `${Math.floor(9 * multiplier)}px ${fontSelected}`;
+                        ctx.letterSpacing = `${2 * multiplier}px`;
+                        ctx.fillText(subtitleValue, exportCanvas.width / 2, overlayCenterY + (14 * multiplier));
+                    } else {
+                        const bannerCenterY = mapDestHeight + ((exportCanvas.height - mapDestHeight) / 2);
+                        ctx.fillStyle = bgStyle;
+                        ctx.fillRect(0, mapDestHeight, exportCanvas.width, exportCanvas.height - mapDestHeight);
+
+                        ctx.fillStyle = mainTextClass;
+                        ctx.font = `bold ${Math.floor(fontSizeMainSrc * multiplier)}px ${fontSelected}`;
+                        ctx.letterSpacing = `${letterSpacingSrc * multiplier}px`;
+                        ctx.fillText(titleValue, exportCanvas.width / 2, bannerCenterY - (8 * multiplier));
+                        
+                        ctx.fillStyle = subTextClass;
+                        ctx.font = `${Math.floor(9 * multiplier)}px ${fontSelected}`;
+                        ctx.letterSpacing = `${2 * multiplier}px`;
+                        ctx.fillText(subtitleValue, exportCanvas.width / 2, bannerCenterY + (10 * multiplier));
+                    }
+                }
+
+                // Render image string directly to our long-press save frame modal
+                const dataURL = exportCanvas.toDataURL('image/png');
+                let modal = document.getElementById('mobile-export-modal');
+                if (modal) {
+                    const imgFrame = document.getElementById('mobile-export-frame');
+                    if (imgFrame) {
+                        imgFrame.innerHTML = '';
+                        const finalPosterImg = document.createElement('img');
+                        finalPosterImg.src = dataURL;
+                        finalPosterImg.style.cssText = 'width:100%;height:auto;max-height:70vh;display:block;object-fit:contain;';
+                        imgFrame.appendChild(finalPosterImg);
+                    }
+                    modal.style.display = 'flex';
+                }
+
+            } catch (innerError) {
+                console.error("Canvas composite step failure: ", innerError);
+            } finally {
+                // 5. MEMORY CLEANUP: Completely dump the temporary map instance and clear DOM weight
+                tempMap.remove();
+                hiddenContainer.remove();
+
+                exportBtn.innerText = "Generate Art File";
+                exportBtn.disabled = false;
             }
+        });
 
-            // FIXED SAFARI MOBILE BYPASS: Generates a temporary programmatic overlay viewport
-            const dataURL = exportCanvas.toDataURL('image/png');
-            
-            let modal = document.getElementById('mobile-export-modal');
-            if (!modal) {
-                modal = document.createElement('div');
-                modal.id = 'mobile-export-modal';
-                modal.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(18,18,18,0.95);z-index:99999;display:none;flex-direction:column;align-items:center;justify-content:center;padding:20px;box-sizing:border-box;color:#fff;font-family:-apple-system,BlinkMacSystemFont,sans-serif;';
-                
-                const closeBtn = document.createElement('button');
-                closeBtn.innerText = '✕ Close Preview';
-                closeBtn.style.cssText = 'margin-bottom:15px;background:#333;color:#fff;border:1px solid #555;padding:10px 20px;border-radius:6px;font-weight:bold;font-size:12px;text-transform:uppercase;letter-spacing:1px;';
-                closeBtn.onclick = () => { modal.style.display = 'none'; };
-                
-                const alertInfo = document.createElement('p');
-                alertInfo.innerText = '📸 Print File Compiled!\nLong-press the image below to save it directly to your Photos.';
-                alertInfo.style.cssText = 'text-align:center;font-size:13px;color:#00ffcc;margin:0 0 15px 0;line-height:1.5;font-weight:bold;';
-                
-                const imgFrame = document.createElement('div');
-                imgFrame.id = 'mobile-export-frame';
-                imgFrame.style.cssText = 'max-width:100%;max-height:70vh;box-shadow:0 20px 50px rgba(0,0,0,0.8);border-radius:4px;overflow:hidden;';
-                
-                modal.appendChild(closeBtn);
-                modal.appendChild(alertInfo);
-                modal.appendChild(imgFrame);
-                document.body.appendChild(modal);
-            }
-
-            const imgFrame = document.getElementById('mobile-export-frame');
-            imgFrame.innerHTML = '';
-            const finalPosterImg = document.createElement('img');
-            finalPosterImg.src = dataURL;
-            finalPosterImg.style.cssText = 'width:100%;height:auto;max-height:70vh;display:block;object-fit:contain;';
-            imgFrame.appendChild(finalPosterImg);
-            
-            // Unveil the layout window cleanly
-            modal.style.display = 'flex';
-
-        } catch (error) {
-            console.error("Export Engine system failure trace: ", error);
-            alert("Export Engine compilation error encountered.");
-        } finally {
-            // Revert layouts back to standard mobile proportions cleanly
-            wrapper.style.cssText = origWrapperStyle;
-            innerWrapper.style.cssText = origInnerStyle;
-            mapDiv.style.cssText = origMapStyle;
-            
-            map.resize();
-            executeVectorStyleOverrides();
-
-            exportBtn.innerText = "Generate Art File";
-            exportBtn.disabled = false;
-        }
-    }, 450); // 450ms safety buffer gives WebGL ample room to cycle high-res tile grids cleanly
+    } catch (outerError) {
+        console.error("Headless pipeline execution failure: ", outerError);
+        if (hiddenContainer) hiddenContainer.remove();
+        exportBtn.innerText = "Generate Art File";
+        exportBtn.disabled = false;
+        alert("Background processing limits encountered.");
+    }
 }
+
