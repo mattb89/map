@@ -388,7 +388,7 @@ document.addEventListener('click', (e) => {
     }
 });
 
-function processExportPipeline() {
+ function processExportPipeline() {
     const mainMap = window.mapInstance;
     if (!mainMap) return;
     
@@ -628,4 +628,3 @@ function processExportPipeline() {
         alert("Background processing limits encountered.");
     }
 }
-
