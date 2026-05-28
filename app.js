@@ -411,22 +411,22 @@ function processExportPipeline() {
     const vignetteIntensity = parseInt(document.getElementById('vignette-intensity').value);
     const labelBlockHeightSrc = textVisible ? 75 : 0; 
 
-    // FIX 1: Calculate the exact map destination height BEFORE building containers
     let mapDestHeight = targetHeight;
     if (textVisible && !textFloatToggle) {
         mapDestHeight = targetHeight - (labelBlockHeightSrc * multiplier);
     }
 
-    // FIX 2: Dynamic Zoom Balancing auto-calculates the exact framing compensation offset
     const screenCanvas = mainMap.getCanvas();
     const scaleFactor = targetWidth / screenCanvas.width;
     const zoomOffset = Math.log2(scaleFactor);
     const targetZoom = mainMap.getZoom() + zoomOffset;
 
-    // FIX 3: Force hidden container to match the exact cropped aspect ratio slice
     const hiddenContainer = document.createElement('div');
     hiddenContainer.style.cssText = `position:fixed; top:0; left:0; width:${targetWidth}px; height:${mapDestHeight}px; opacity:0.01; pointer-events:none; z-index:-9999;`;
     document.body.appendChild(hiddenContainer);
+
+    // FIXED: Local mutex flag blocks the ghost map from entering an infinite rendering loop
+    let isTempUpdating = false;
 
     try {
         const tempMap = new maplibregl.Map({
@@ -438,8 +438,10 @@ function processExportPipeline() {
             preserveDrawingBuffer: true
         });
 
-        // FIX 4: Ghost Style Injection guarantees your custom purples & cyans paint onto the high-res tiles
         tempMap.on('styledata', () => {
+            if (isTempUpdating) return;
+            isTempUpdating = true; // Lock the background gate
+
             const bgStyleVal = document.getElementById('color-bg').value;
             const highwayColorVal = document.getElementById('color-highways').value;
             const roadColorVal = document.getElementById('color-roads').value;
@@ -497,6 +499,8 @@ function processExportPipeline() {
                     ]);
                 }
             });
+
+            isTempUpdating = false; // Open the background gate cleanly
         });
 
         tempMap.once('idle', () => {
@@ -520,7 +524,6 @@ function processExportPipeline() {
                 ctx.fillStyle = bgStyle;
                 ctx.fillRect(0, 0, exportCanvas.width, exportCanvas.height);
                 
-                // Draw pristine full-bleed map vector details
                 ctx.drawImage(originalCanvas, 0, 0, exportCanvas.width, mapDestHeight);
 
                 if (softEdgeToggle) {
@@ -625,3 +628,4 @@ function processExportPipeline() {
         alert("Background processing limits encountered.");
     }
 }
+
