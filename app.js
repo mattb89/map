@@ -388,7 +388,7 @@ document.addEventListener('click', (e) => {
     }
 });
 
- function processExportPipeline() {
+function processExportPipeline() {
     const mainMap = window.mapInstance;
     if (!mainMap) return;
     
@@ -416,19 +416,21 @@ document.addEventListener('click', (e) => {
         mapDestHeight = targetHeight - (labelBlockHeightSrc * multiplier);
     }
 
+    // Calculate framing balance matching your active screen dimensions
     const screenCanvas = mainMap.getCanvas();
     const scaleFactor = targetWidth / screenCanvas.width;
     const zoomOffset = Math.log2(scaleFactor);
     const targetZoom = mainMap.getZoom() + zoomOffset;
 
+    // FIXED ELEVATION LAYER: Mounting container behind layout grid prevents Safari
+    // from throttling WebGL rendering cycles while keeping it completely hidden from view.
     const hiddenContainer = document.createElement('div');
-    hiddenContainer.style.cssText = `position:fixed; top:0; left:0; width:${targetWidth}px; height:${mapDestHeight}px; opacity:0.01; pointer-events:none; z-index:-9999;`;
+    hiddenContainer.id = 'temp-headless-container';
+    hiddenContainer.style.cssText = `position:fixed; top:0; left:0; width:${targetWidth}px; height:${mapDestHeight}px; z-index:-1; pointer-events:none;`;
     document.body.appendChild(hiddenContainer);
 
-    // FIXED: Local mutex flag blocks the ghost map from entering an infinite rendering loop
-    let isTempUpdating = false;
-
     try {
+        // Safe inherit clone directly carries over live canvas colors seamlessly
         const tempMap = new maplibregl.Map({
             container: hiddenContainer,
             style: mainMap.getStyle(), 
@@ -438,72 +440,12 @@ document.addEventListener('click', (e) => {
             preserveDrawingBuffer: true
         });
 
-        tempMap.on('styledata', () => {
-            if (isTempUpdating) return;
-            isTempUpdating = true; // Lock the background gate
+        let isCaptured = false;
 
-            const bgStyleVal = document.getElementById('color-bg').value;
-            const highwayColorVal = document.getElementById('color-highways').value;
-            const roadColorVal = document.getElementById('color-roads').value;
-            const buildingColorVal = document.getElementById('color-buildings').value;
-            const waterColorVal = document.getElementById('color-water').value;
-            const parkColorVal = document.getElementById('color-parks').value;
-            const trainColorVal = document.getElementById('color-trains').value;
-            const highwaySliderWidth = parseFloat(document.getElementById('width-highways').value);
+        const captureAndRender = () => {
+            if (isCaptured) return;
+            isCaptured = true;
 
-            const isHighwayRegex = /(motorway|trunk|primary|major|expressway|highway|link)/i;
-            const isMinorRoadRegex = /(minor|residential|service|secondary|tertiary|street|road|path|track)/i;
-            const isBuildingRegex = /(building|3d|structure|extrusion)/i;
-            const isWaterRegex = /(water|stream|river|lake|ocean|sea|marina)/i;
-            const isParkRegex = /(park|leisure|forest|green|nature|landcover|cemetery|wood|grass)/i;
-            const isTrainRegex = /(rail|train|transit|railway|subway)/i;
-
-            const layers = tempMap.getStyle().layers;
-            layers.forEach(layer => {
-                if (layer.type === 'background') tempMap.setPaintProperty(layer.id, 'background-color', bgStyleVal);
-                if (layer.type === 'fill' && (layer.id.includes('land') || layer.id.includes('area') || layer.id.includes('background'))) {
-                    if (!isParkRegex.test(layer.id)) tempMap.setPaintProperty(layer.id, 'fill-color', bgStyleVal);
-                }
-                
-                const layerSrc = layer.source || '';
-                const sourceLayerStr = layer['source-layer'] || layer.sourceLayer || '';
-                const fullLayerPath = `${layer.id} ${layerSrc} ${sourceLayerStr}`;
-
-                if (isBuildingRegex.test(fullLayerPath)) {
-                    if (layer.type === 'fill' || layer.type === 'fill-extrusion') {
-                        tempMap.setPaintProperty(layer.id, 'fill-color', buildingColorVal);
-                        tempMap.setPaintProperty(layer.id, 'fill-opacity', 0.85);
-                    }
-                }
-                if (isWaterRegex.test(fullLayerPath)) {
-                    if (layer.type === 'fill') tempMap.setPaintProperty(layer.id, 'fill-color', waterColorVal);
-                    if (layer.type === 'line') tempMap.setPaintProperty(layer.id, 'line-color', waterColorVal);
-                }
-                if (isParkRegex.test(fullLayerPath)) {
-                    if (layer.type === 'fill') tempMap.setPaintProperty(layer.id, 'fill-color', parkColorVal);
-                }
-                if (isTrainRegex.test(fullLayerPath)) {
-                    if (layer.type === 'line') tempMap.setPaintProperty(layer.id, 'line-color', trainColorVal);
-                }
-                if (layer.type === 'line' && isHighwayRegex.test(fullLayerPath)) {
-                    tempMap.setPaintProperty(layer.id, 'line-color', highwayColorVal);
-                    tempMap.setPaintProperty(layer.id, 'line-width', highwaySliderWidth);
-                }
-                if (layer.type === 'line' && isMinorRoadRegex.test(fullLayerPath) && !isHighwayRegex.test(fullLayerPath)) {
-                    tempMap.setPaintProperty(layer.id, 'line-color', roadColorVal);
-                    tempMap.setPaintProperty(layer.id, 'line-width', [
-                        'interpolate', ['linear'], ['zoom'],
-                        1, 0.1,   
-                        10, 0.2,  
-                        14, 0.45
-                    ]);
-                }
-            });
-
-            isTempUpdating = false; // Open the background gate cleanly
-        });
-
-        tempMap.once('idle', () => {
             try {
                 const originalCanvas = tempMap.getCanvas();
                 
@@ -524,6 +466,7 @@ document.addEventListener('click', (e) => {
                 ctx.fillStyle = bgStyle;
                 ctx.fillRect(0, 0, exportCanvas.width, exportCanvas.height);
                 
+                // Draw full-bleed layout vector details straight from the inherited engine state
                 ctx.drawImage(originalCanvas, 0, 0, exportCanvas.width, mapDestHeight);
 
                 if (softEdgeToggle) {
@@ -567,7 +510,7 @@ document.addEventListener('click', (e) => {
                         
                         ctx.fillStyle = subTextClass;
                         ctx.font = `${Math.floor(9 * multiplier)}px ${fontSelected}`;
-                        ctx.letterSpacing = `${2 * multiplier}px`;
+                        ctx.letterSpacing = `${2 * multiplier;px}`;
                         ctx.fillText(subtitleValue, exportCanvas.width / 2, bannerCenterY + (10 * multiplier));
                     }
                 }
@@ -618,7 +561,13 @@ document.addEventListener('click', (e) => {
                 exportBtn.innerText = "Generate Art File";
                 exportBtn.disabled = false;
             }
-        });
+        };
+
+        // Fire rendering capture when tiles hit quiet states
+        tempMap.once('idle', captureAndRender);
+
+        // Fail-safe fallback macro window forces capture if cellular networks hold up the idle token
+        setTimeout(captureAndRender, 1000);
 
     } catch (outerError) {
         console.error("Headless pipeline execution failure: ", outerError);
@@ -628,3 +577,4 @@ document.addEventListener('click', (e) => {
         alert("Background processing limits encountered.");
     }
 }
+
