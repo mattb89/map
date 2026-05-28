@@ -388,7 +388,7 @@ document.addEventListener('click', (e) => {
     }
 });
 
- function processExportPipeline() {
+function processExportPipeline() {
     const mainMap = window.mapInstance;
     if (!mainMap) return;
     
@@ -398,7 +398,6 @@ document.addEventListener('click', (e) => {
     exportBtn.innerText = "Cloning Canvas Grid...";
     exportBtn.disabled = true;
 
-    // 1. Calculate absolute target print dimensions
     const baseWidth = 420;
     const baseHeight = 560;
     const multiplier = (exportResMode === 'print-high') ? 4 : 1.5;
@@ -406,13 +405,13 @@ document.addEventListener('click', (e) => {
     const targetWidth = baseWidth * multiplier;
     const targetHeight = baseHeight * multiplier;
 
-    // 2. Create the hidden off-screen ghost container element
+    // FIXED VIEWPORT LOCKOUT: Using position fixed + ultra-low opacity keeps the canvas 
+    // actively inside Safari's layout loop so the GPU processes it immediately.
     const hiddenContainer = document.createElement('div');
-    hiddenContainer.style.cssText = `position:absolute; top:-9999px; left:-9999px; width:${targetWidth}px; height:${targetHeight}px;`;
+    hiddenContainer.style.cssText = `position:fixed; top:0; left:0; width:${targetWidth}px; height:${targetHeight}px; opacity:0.01; pointer-events:none; z-index:-9999;`;
     document.body.appendChild(hiddenContainer);
 
     try {
-        // 3. Instantiate a headless map copy inheriting live styles and coordinates
         const tempMap = new maplibregl.Map({
             container: hiddenContainer,
             style: mainMap.getStyle(), 
@@ -422,7 +421,6 @@ document.addEventListener('click', (e) => {
             preserveDrawingBuffer: true
         });
 
-        // 4. Wait until the background canvas completely finishes pulling tiles and painting
         tempMap.once('idle', () => {
             try {
                 const originalCanvas = tempMap.getCanvas();
@@ -454,7 +452,6 @@ document.addEventListener('click', (e) => {
                     mapDestHeight = exportCanvas.height - (labelBlockHeightSrc * multiplier);
                 }
                 
-                // Draw pristine full-bleed background tiles (No mobile screen clipping boundaries!)
                 ctx.drawImage(originalCanvas, 0, 0, exportCanvas.width, mapDestHeight);
 
                 if (softEdgeToggle) {
@@ -503,28 +500,50 @@ document.addEventListener('click', (e) => {
                     }
                 }
 
-                // Render image string directly to our long-press save frame modal
                 const dataURL = exportCanvas.toDataURL('image/png');
+                
+                // FIXED MODAL BOOTSTRAPPER: Explicitly builds out the viewport overlay structure from scratch
                 let modal = document.getElementById('mobile-export-modal');
-                if (modal) {
-                    const imgFrame = document.getElementById('mobile-export-frame');
-                    if (imgFrame) {
-                        imgFrame.innerHTML = '';
-                        const finalPosterImg = document.createElement('img');
-                        finalPosterImg.src = dataURL;
-                        finalPosterImg.style.cssText = 'width:100%;height:auto;max-height:70vh;display:block;object-fit:contain;';
-                        imgFrame.appendChild(finalPosterImg);
-                    }
-                    modal.style.display = 'flex';
+                if (!modal) {
+                    modal = document.createElement('div');
+                    modal.id = 'mobile-export-modal';
+                    modal.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(18,18,18,0.96);z-index:99999;display:none;flex-direction:column;align-items:center;justify-content:center;padding:20px;box-sizing:border-box;color:#fff;font-family:-apple-system,BlinkMacSystemFont,sans-serif;';
+                    
+                    const closeBtn = document.createElement('button');
+                    closeBtn.innerText = '✕ Close Preview';
+                    closeBtn.style.cssText = 'margin-bottom:15px;background:#222;color:#fff;border:1px solid #444;padding:12px 24px;border-radius:8px;font-weight:bold;font-size:13px;text-transform:uppercase;letter-spacing:1px;';
+                    closeBtn.onclick = () => { modal.style.display = 'none'; };
+                    
+                    const alertInfo = document.createElement('p');
+                    alertInfo.innerText = '📸 Print File Compiled!\nLong-press the image below to save it directly to your Photos.';
+                    alertInfo.style.cssText = 'text-align:center;font-size:13px;color:#00ffcc;margin:0 0 15px 0;line-height:1.5;font-weight:bold;';
+                    
+                    const imgFrame = document.createElement('div');
+                    imgFrame.id = 'mobile-export-frame';
+                    imgFrame.style.cssText = 'max-width:100%;max-height:70vh;box-shadow:0 20px 50px rgba(0,0,0,0.9);border-radius:4px;overflow:hidden;';
+                    
+                    modal.appendChild(closeBtn);
+                    modal.appendChild(alertInfo);
+                    modal.appendChild(imgFrame);
+                    document.body.appendChild(modal);
                 }
+
+                const imgFrame = document.getElementById('mobile-export-frame');
+                if (imgFrame) {
+                    imgFrame.innerHTML = '';
+                    const finalPosterImg = document.createElement('img');
+                    finalPosterImg.src = dataURL;
+                    finalPosterImg.style.cssText = 'width:100%;height:auto;max-height:70vh;display:block;object-fit:contain;';
+                    imgFrame.appendChild(finalPosterImg);
+                }
+                
+                modal.style.display = 'flex';
 
             } catch (innerError) {
                 console.error("Canvas composite step failure: ", innerError);
             } finally {
-                // 5. MEMORY CLEANUP: Completely dump the temporary map instance and clear DOM weight
                 tempMap.remove();
                 hiddenContainer.remove();
-
                 exportBtn.innerText = "Generate Art File";
                 exportBtn.disabled = false;
             }
