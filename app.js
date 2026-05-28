@@ -1,9 +1,8 @@
 /**
- * CityMapper Studio Pro Engine Logic Controller Module v16.1
- * Production Modular Guarded Architecture System - Synchronized State Pass
+ * CityMapper Studio Pro Engine Logic Controller Module v16.2
+ * Production Modular Guarded Architecture System - In-Place Breakout Capture
  */
 
-// Keep application engine references globally accessible
 window.mapInstance = null;
 let uiDebounceTimer = null;
 let isUpdatingStyles = false; 
@@ -18,9 +17,8 @@ const themePresets = {
     'warm-terracotta': { title: 'Clay', bg: '#f4ebe1', highway: '#b85032', roads: '#d99b77', buildings: '#ebd0be', water: '#e0c3b1', parks: '#e3dfd5', trains: '#823720', textMain: '#612312', textSub: '#9c6f59' }
 };
 
-// INITIALIZATION PIPELINE: Safe wrapper ensures the HTML is completely parsed before booting MapLibre
+// INITIALIZATION PIPELINE: Safe gate ensures DOM nodes are completely constructed before map execution
 document.addEventListener("DOMContentLoaded", () => {
-    
     window.mapInstance = new maplibregl.Map({
         container: 'map',
         style: 'https://tiles.openfreemap.org/styles/dark', 
@@ -30,9 +28,8 @@ document.addEventListener("DOMContentLoaded", () => {
         preserveDrawingBuffer: true
     });
 
-
     window.mapInstance.on('load', () => { 
-        // FIX: Reparent the vignette to eliminate mobile subpixel clipping errors
+        // Reparent the vignette node immediately on boot to prevent iOS scale rounding bugs
         const vignette = document.getElementById('map-vignette');
         const boundingBox = document.getElementById('map-bounding-box');
         if (vignette && boundingBox) boundingBox.appendChild(vignette);
@@ -45,8 +42,6 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     });
 
-
-    // Unified callback listens to incoming style server mutations safely
     window.mapInstance.on('styledata', () => {
         if (!isUpdatingStyles) {
             executeVectorStyleOverrides();
@@ -129,8 +124,6 @@ function executeVectorStyleOverrides() {
 
         if (isBuildingRegex.test(fullLayerPath)) {
             if (layer.type === 'fill' || layer.type === 'fill-extrusion') {
-                // FIX: Force buildings to remain active down to zoom level 10
-                map.setLayerZoomRange(layer.id, 10, 24);
                 map.setPaintProperty(layer.id, 'fill-color', buildingColorVal);
                 map.setPaintProperty(layer.id, 'fill-opacity', 0.85);
             }
@@ -150,9 +143,6 @@ function executeVectorStyleOverrides() {
             map.setPaintProperty(layer.id, 'line-width', highwaySliderWidth);
         }
         if (layer.type === 'line' && isMinorRoadRegex.test(fullLayerPath) && !isHighwayRegex.test(fullLayerPath)) {
-            // FIX: Force minor roads to remain active down to zoom level 10
-            map.setLayerZoomRange(layer.id, 10, 24);
-            
             map.setPaintProperty(layer.id, 'line-color', roadColorVal);
             map.setPaintProperty(layer.id, 'line-width', [
                 'interpolate', ['linear'], ['zoom'],
@@ -388,14 +378,15 @@ document.addEventListener('click', (e) => {
     }
 });
 
+// FIXED PRODUCTION ENGINE: Employs In-Place Layout Breakout to completely bypass mobile Safari layout squeezing
 function processExportPipeline() {
-    const mainMap = window.mapInstance;
-    if (!mainMap) return;
+    const map = window.mapInstance;
+    if (!map) return;
     
     const exportResMode = document.getElementById('export-resolution').value;
     const exportBtn = document.getElementById('btn-export');
     
-    exportBtn.innerText = "Cloning Canvas Grid...";
+    exportBtn.innerText = "Compiling Print File...";
     exportBtn.disabled = true;
 
     const baseWidth = 420;
@@ -405,176 +396,155 @@ function processExportPipeline() {
     const targetWidth = baseWidth * multiplier;
     const targetHeight = baseHeight * multiplier;
 
-    const textVisible = document.getElementById('text-visible-toggle').checked;
-    const textFloatToggle = document.getElementById('text-position-toggle').checked;
-    const softEdgeToggle = document.getElementById('style-soft-edges').checked;
-    const vignetteIntensity = parseInt(document.getElementById('vignette-intensity').value);
-    const labelBlockHeightSrc = textVisible ? 75 : 0; 
+    const wrapper = document.getElementById('poster-wrapper');
+    const innerWrapper = document.getElementById('map-wrapper-inner');
+    const mapDiv = document.getElementById('map');
+    
+    const origWrapperStyle = wrapper.style.cssText;
+    const origInnerStyle = innerWrapper.style.cssText;
+    const origMapStyle = mapDiv.style.cssText;
 
-    let mapDestHeight = targetHeight;
-    if (textVisible && !textFloatToggle) {
-        mapDestHeight = targetHeight - (labelBlockHeightSrc * multiplier);
-    }
+    // FIXED OVERRIDE: Temporarily breaks the container out of standard screen bounds using position: fixed
+    wrapper.style.cssText = `position: fixed; top: 0; left: 0; width: ${targetWidth}px; height: ${targetHeight}px; max-width: none !important; max-height: none !important; z-index: -9999; transform: none !important;`;
+    innerWrapper.style.cssText = `width: 100% !important; height: 100% !important; transform: none !important; max-width: none !important; max-height: none !important;`;
+    mapDiv.style.cssText = `width: 100% !important; height: 100% !important; max-width: none !important; max-height: none !important;`;
 
-    // Calculate framing balance matching your active screen dimensions
-    const screenCanvas = mainMap.getCanvas();
-    const scaleFactor = targetWidth / screenCanvas.width;
-    const zoomOffset = Math.log2(scaleFactor);
-    const targetZoom = mainMap.getZoom() + zoomOffset;
+    map.resize();
+    executeVectorStyleOverrides();
 
-    // FIXED ELEVATION LAYER: Mounting container behind layout grid prevents Safari
-    // from throttling WebGL rendering cycles while keeping it completely hidden from view.
-    const hiddenContainer = document.createElement('div');
-    hiddenContainer.id = 'temp-headless-container';
-    hiddenContainer.style.cssText = `position:fixed; top:0; left:0; width:${targetWidth}px; height:${mapDestHeight}px; z-index:-1; pointer-events:none;`;
-    document.body.appendChild(hiddenContainer);
+    // Safe timeout allows the browser thread to expand the canvas fully before snapshotting pixels
+    setTimeout(() => {
+        try {
+            const originalCanvas = map.getCanvas();
+            const textVisible = document.getElementById('text-visible-toggle').checked;
+            const textFloatToggle = document.getElementById('text-position-toggle').checked;
+            const softEdgeToggle = document.getElementById('style-soft-edges').checked;
+            const vignetteIntensity = parseInt(document.getElementById('vignette-intensity').value);
+            const labelBlockHeightSrc = textVisible ? 75 : 0; 
+            
+            const exportCanvas = document.createElement('canvas');
+            exportCanvas.width = targetWidth;
+            exportCanvas.height = targetHeight; 
+            const ctx = exportCanvas.getContext('2d');
 
-    try {
-        // Safe inherit clone directly carries over live canvas colors seamlessly
-        const tempMap = new maplibregl.Map({
-            container: hiddenContainer,
-            style: mainMap.getStyle(), 
-            center: mainMap.getCenter(),
-            zoom: targetZoom,
-            attributionControl: false,
-            preserveDrawingBuffer: true
-        });
+            const bgStyle = document.getElementById('color-bg').value;
+            const mainTextClass = document.getElementById('color-text-main').value;
+            const subTextClass = document.getElementById('color-text-sub').value;
+            const titleValue = document.getElementById('text-main-input').value.toUpperCase(); 
+            const subtitleValue = document.getElementById('text-sub-input').value.toUpperCase(); 
+            const fontSelected = document.getElementById('font-select').value;
+            const fontSizeMainSrc = parseInt(document.getElementById('size-font-main').value);
+            const letterSpacingSrc = parseInt(document.getElementById('letter-spacing-main').value);
 
-        let isCaptured = false;
+            ctx.fillStyle = bgStyle;
+            ctx.fillRect(0, 0, exportCanvas.width, exportCanvas.height);
 
-        const captureAndRender = () => {
-            if (isCaptured) return;
-            isCaptured = true;
-
-            try {
-                const originalCanvas = tempMap.getCanvas();
-                
-                const exportCanvas = document.createElement('canvas');
-                exportCanvas.width = targetWidth;
-                exportCanvas.height = targetHeight; 
-                const ctx = exportCanvas.getContext('2d');
-
-                const bgStyle = document.getElementById('color-bg').value;
-                const mainTextClass = document.getElementById('color-text-main').value;
-                const subTextClass = document.getElementById('color-text-sub').value;
-                const titleValue = document.getElementById('text-main-input').value.toUpperCase(); 
-                const subtitleValue = document.getElementById('text-sub-input').value.toUpperCase(); 
-                const fontSelected = document.getElementById('font-select').value;
-                const fontSizeMainSrc = parseInt(document.getElementById('size-font-main').value);
-                const letterSpacingSrc = parseInt(document.getElementById('letter-spacing-main').value);
-
-                ctx.fillStyle = bgStyle;
-                ctx.fillRect(0, 0, exportCanvas.width, exportCanvas.height);
-                
-                // Draw full-bleed layout vector details straight from the inherited engine state
-                ctx.drawImage(originalCanvas, 0, 0, exportCanvas.width, mapDestHeight);
-
-                if (softEdgeToggle) {
-                    ctx.globalCompositeOperation = "source-over";
-                    const shadowBorder = (vignetteIntensity / 1.2) * multiplier;
-                    ctx.strokeStyle = bgStyle;
-                    ctx.lineWidth = shadowBorder;
-                    ctx.shadowBlur = vignetteIntensity * multiplier;
-                    ctx.shadowColor = bgStyle;
-                    ctx.strokeRect(shadowBorder/2, shadowBorder/2, exportCanvas.width - shadowBorder, mapDestHeight - shadowBorder);
-                    ctx.shadowBlur = 0; 
-                }
-
-                if (textVisible) {
-                    ctx.textAlign = 'center';
-                    ctx.textBaseline = 'middle';
-
-                    if (textFloatToggle) {
-                        const overlayCenterY = exportCanvas.height - (60 * multiplier);
-                        ctx.fillStyle = "rgba(0,0,0,0.85)";
-                        ctx.fillRect(exportCanvas.width * 0.12, overlayCenterY - (30 * multiplier), exportCanvas.width * 0.76, 65 * multiplier);
-                        
-                        ctx.fillStyle = mainTextClass;
-                        ctx.font = `bold ${Math.floor(fontSizeMainSrc * multiplier)}px ${fontSelected}`;
-                        ctx.letterSpacing = `${letterSpacingSrc * multiplier}px`;
-                        ctx.fillText(titleValue, exportCanvas.width / 2, overlayCenterY - (6 * multiplier));
-                        
-                        ctx.fillStyle = subTextClass;
-                        ctx.font = `${Math.floor(9 * multiplier)}px ${fontSelected}`;
-                        ctx.letterSpacing = `${2 * multiplier}px`;
-                        ctx.fillText(subtitleValue, exportCanvas.width / 2, overlayCenterY + (14 * multiplier));
-                    } else {
-                        const bannerCenterY = mapDestHeight + ((exportCanvas.height - mapDestHeight) / 2);
-                        ctx.fillStyle = bgStyle;
-                        ctx.fillRect(0, mapDestHeight, exportCanvas.width, exportCanvas.height - mapDestHeight);
-
-                        ctx.fillStyle = mainTextClass;
-                        ctx.font = `bold ${Math.floor(fontSizeMainSrc * multiplier)}px ${fontSelected}`;
-                        ctx.letterSpacing = `${letterSpacingSrc * multiplier}px`;
-                        ctx.fillText(titleValue, exportCanvas.width / 2, bannerCenterY - (8 * multiplier));
-                        
-                        ctx.fillStyle = subTextClass;
-                        ctx.font = `${Math.floor(9 * multiplier)}px ${fontSelected}`;
-                        ctx.letterSpacing = `${2 * multiplier;px}`;
-                        ctx.fillText(subtitleValue, exportCanvas.width / 2, bannerCenterY + (10 * multiplier));
-                    }
-                }
-
-                const dataURL = exportCanvas.toDataURL('image/png');
-                
-                let modal = document.getElementById('mobile-export-modal');
-                if (!modal) {
-                    modal = document.createElement('div');
-                    modal.id = 'mobile-export-modal';
-                    modal.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(18,18,18,0.96);z-index:99999;display:none;flex-direction:column;align-items:center;justify-content:center;padding:20px;box-sizing:border-box;color:#fff;font-family:-apple-system,BlinkMacSystemFont,sans-serif;';
-                    
-                    const closeBtn = document.createElement('button');
-                    closeBtn.innerText = '✕ Close Preview';
-                    closeBtn.style.cssText = 'margin-bottom:15px;background:#222;color:#fff;border:1px solid #444;padding:12px 24px;border-radius:8px;font-weight:bold;font-size:13px;text-transform:uppercase;letter-spacing:1px;';
-                    closeBtn.onclick = () => { modal.style.display = 'none'; };
-                    
-                    const alertInfo = document.createElement('p');
-                    alertInfo.innerText = '📸 Print File Compiled!\nLong-press the image below to save it directly to your Photos.';
-                    alertInfo.style.cssText = 'text-align:center;font-size:13px;color:#00ffcc;margin:0 0 15px 0;line-height:1.5;font-weight:bold;';
-                    
-                    const imgFrame = document.createElement('div');
-                    imgFrame.id = 'mobile-export-frame';
-                    imgFrame.style.cssText = 'max-width:100%;max-height:70vh;box-shadow:0 20px 50px rgba(0,0,0,0.9);border-radius:4px;overflow:hidden;';
-                    
-                    modal.appendChild(closeBtn);
-                    modal.appendChild(alertInfo);
-                    modal.appendChild(imgFrame);
-                    document.body.appendChild(modal);
-                }
-
-                const imgFrame = document.getElementById('mobile-export-frame');
-                if (imgFrame) {
-                    imgFrame.innerHTML = '';
-                    const finalPosterImg = document.createElement('img');
-                    finalPosterImg.src = dataURL;
-                    finalPosterImg.style.cssText = 'width:100%;height:auto;max-height:70vh;display:block;object-fit:contain;';
-                    imgFrame.appendChild(finalPosterImg);
-                }
-                
-                modal.style.display = 'flex';
-
-            } catch (innerError) {
-                console.error("Canvas composite step failure: ", innerError);
-            } finally {
-                tempMap.remove();
-                hiddenContainer.remove();
-                exportBtn.innerText = "Generate Art File";
-                exportBtn.disabled = false;
+            let mapDestHeight = exportCanvas.height;
+            if (textVisible && !textFloatToggle) {
+                mapDestHeight = exportCanvas.height - (labelBlockHeightSrc * multiplier);
             }
-        };
+            
+            // Draws full-bleed map vectors natively with matching zoom scales and layouts
+            ctx.drawImage(originalCanvas, 0, 0, exportCanvas.width, mapDestHeight);
 
-        // Fire rendering capture when tiles hit quiet states
-        tempMap.once('idle', captureAndRender);
+            if (softEdgeToggle) {
+                ctx.globalCompositeOperation = "source-over";
+                const shadowBorder = (vignetteIntensity / 1.2) * multiplier;
+                ctx.strokeStyle = bgStyle;
+                ctx.lineWidth = shadowBorder;
+                ctx.shadowBlur = vignetteIntensity * multiplier;
+                ctx.shadowColor = bgStyle;
+                ctx.strokeRect(shadowBorder/2, shadowBorder/2, exportCanvas.width - shadowBorder, mapDestHeight - shadowBorder);
+                ctx.shadowBlur = 0; 
+            }
 
-        // Fail-safe fallback macro window forces capture if cellular networks hold up the idle token
-        setTimeout(captureAndRender, 1000);
+            if (textVisible) {
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
 
-    } catch (outerError) {
-        console.error("Headless pipeline execution failure: ", outerError);
-        if (hiddenContainer) hiddenContainer.remove();
-        exportBtn.innerText = "Generate Art File";
-        exportBtn.disabled = false;
-        alert("Background processing limits encountered.");
-    }
+                if (textFloatToggle) {
+                    const overlayCenterY = exportCanvas.height - (60 * multiplier);
+                    ctx.fillStyle = "rgba(0,0,0,0.85)";
+                    ctx.fillRect(exportCanvas.width * 0.12, overlayCenterY - (30 * multiplier), exportCanvas.width * 0.76, 65 * multiplier);
+                    
+                    ctx.fillStyle = mainTextClass;
+                    ctx.font = `bold ${Math.floor(fontSizeMainSrc * multiplier)}px ${fontSelected}`;
+                    ctx.letterSpacing = `${letterSpacingSrc * multiplier}px`;
+                    ctx.fillText(titleValue, exportCanvas.width / 2, overlayCenterY - (6 * multiplier));
+                    
+                    ctx.fillStyle = subTextClass;
+                    ctx.font = `${Math.floor(9 * multiplier)}px ${fontSelected}`;
+                    ctx.letterSpacing = `${2 * multiplier}px`;
+                    ctx.fillText(subtitleValue, exportCanvas.width / 2, overlayCenterY + (14 * multiplier));
+                } else {
+                    const bannerCenterY = mapDestHeight + ((exportCanvas.height - mapDestHeight) / 2);
+                    ctx.fillStyle = bgStyle;
+                    ctx.fillRect(0, mapDestHeight, exportCanvas.width, exportCanvas.height - mapDestHeight);
+
+                    ctx.fillStyle = mainTextClass;
+                    ctx.font = `bold ${Math.floor(fontSizeMainSrc * multiplier)}px ${fontSelected}`;
+                    ctx.letterSpacing = `${letterSpacingSrc * multiplier}px`;
+                    ctx.fillText(titleValue, exportCanvas.width / 2, bannerCenterY - (8 * multiplier));
+                    
+                    ctx.fillStyle = subTextClass;
+                    ctx.font = `${Math.floor(9 * multiplier)}px ${fontSelected}`;
+                    ctx.letterSpacing = `${2 * multiplier}px`;
+                    ctx.fillText(subtitleValue, exportCanvas.width / 2, bannerCenterY + (10 * multiplier));
+                }
+            }
+
+            const dataURL = exportCanvas.toDataURL('image/png');
+            
+            let modal = document.getElementById('mobile-export-modal');
+            if (!modal) {
+                modal = document.createElement('div');
+                modal.id = 'mobile-export-modal';
+                modal.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(18,18,18,0.96);z-index:99999;display:none;flex-direction:column;align-items:center;justify-content:center;padding:20px;box-sizing:border-box;color:#fff;font-family:-apple-system,BlinkMacSystemFont,sans-serif;';
+                
+                const closeBtn = document.createElement('button');
+                closeBtn.innerText = '✕ Close Preview';
+                closeBtn.style.cssText = 'margin-bottom:15px;background:#222;color:#fff;border:1px solid #444;padding:12px 24px;border-radius:8px;font-weight:bold;font-size:13px;text-transform:uppercase;letter-spacing:1px;';
+                closeBtn.onclick = () => { modal.style.display = 'none'; };
+                
+                const alertInfo = document.createElement('p');
+                alertInfo.innerText = '📸 Print File Compiled!\nLong-press the image below to save it directly to your Photos.';
+                alertInfo.style.cssText = 'text-align:center;font-size:13px;color:#00ffcc;margin:0 0 15px 0;line-height:1.5;font-weight:bold;';
+                
+                const imgFrame = document.createElement('div');
+                imgFrame.id = 'mobile-export-frame';
+                imgFrame.style.cssText = 'max-width:100%;max-height:70vh;box-shadow:0 20px 50px rgba(0,0,0,0.9);border-radius:4px;overflow:hidden;';
+                
+                modal.appendChild(closeBtn);
+                modal.appendChild(alertInfo);
+                modal.appendChild(imgFrame);
+                document.body.appendChild(modal);
+            }
+
+            const imgFrame = document.getElementById('mobile-export-frame');
+            if (imgFrame) {
+                imgFrame.innerHTML = '';
+                const finalPosterImg = document.createElement('img');
+                finalPosterImg.src = dataURL;
+                finalPosterImg.style.cssText = 'width:100%;height:auto;max-height:70vh;display:block;object-fit:contain;';
+                imgFrame.appendChild(finalPosterImg);
+            }
+            
+            modal.style.display = 'flex';
+
+        } catch (innerError) {
+            console.error("Canvas composite step failure: ", innerError);
+        } finally {
+            // Restore native responsive mobile sizing configurations instantly
+            wrapper.style.cssText = origWrapperStyle;
+            innerWrapper.style.cssText = origInnerStyle;
+            mapDiv.style.cssText = origMapStyle;
+            
+            map.resize();
+            executeVectorStyleOverrides();
+            renderDOMTypographyUpdates();
+
+            exportBtn.innerText = "Generate Art File";
+            exportBtn.disabled = false;
+        }
+    }, 600); // 600ms timing gate guarantees the browser layout engine transitions frame allocations cleanly
 }
-
