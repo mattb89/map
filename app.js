@@ -130,7 +130,7 @@ function executeVectorStyleOverrides() {
         }
         if (isWaterRegex.test(fullLayerPath)) {
             if (layer.type === 'fill') map.setPaintProperty(layer.id, 'fill-color', waterColorVal);
-            if (layer.type === 'line') map.setPaintProperty(layer.id, 'line-color', waterColorVal);
+            if (layer.  type === 'line') map.setPaintProperty(layer.id, 'line-color', waterColorVal);
         }
         if (isParkRegex.test(fullLayerPath)) {
             if (layer.type === 'fill') map.setPaintProperty(layer.id, 'fill-color', parkColorVal);
@@ -148,7 +148,7 @@ function executeVectorStyleOverrides() {
                 'interpolate', ['linear'], ['zoom'],
                 1, 0.1,   
                 10, 0.2,  
-                14, 0.45
+                14, 0.8 // previous value was 0.45 
             ]);
         }
     });
@@ -160,6 +160,7 @@ function triggerUIDebounce() {
     clearTimeout(uiDebounceTimer);
     uiDebounceTimer = setTimeout(() => {
         renderDOMTypographyUpdates();
+        executeVectorStyleOverrides();
     }, 30);
 }
 
