@@ -510,8 +510,11 @@ function processExportPipeline() {
                     
                     // FIX 2: Dynamically match your designer theme background color instead of forcing charcoal black
                     ctx.fillStyle = bgStyle;
-                    ctx.fillRect(exportCanvas.width * 0.12, overlayCenterY - (30 * multiplier), exportCanvas.width * 0.76, 65 * multiplier);
-                    
+                    //ctx.fillRect(exportCanvas.width * 0.12, overlayCenterY - (30 * multiplier), exportCanvas.width * 0.76, 65 * multiplier);
+                    const boxHeight = 65 * multiplier;
+                    const boxTop = overlayCenterY - (30 * multiplier);
+                    ctx.fillRect(0, boxTop, exportCanvas.width, boxHeight);
+
                     ctx.fillStyle = mainTextClass;
                     ctx.font = `bold ${Math.floor(fontSizeMainSrc * multiplier)}px ${fontSelected}`;
                     ctx.letterSpacing = `${letterSpacingSrc * multiplier}px`;
