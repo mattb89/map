@@ -399,11 +399,14 @@ function processExportPipeline() {
     const baseWidth = 420;
     const baseHeight = 560;
     
+    // Dynamically map multipliers while safeguarding iOS hardware boundaries
     let multiplier = 1.5;
     if (exportResMode === 'print-high') {
-        multiplier = 4;
-    } else if (exportResMode === 'print-ultra') {
-        multiplier = 8;
+        multiplier = 4; // 300 DPI (1680x2240)
+    } else if (exportResMode.includes('600') || exportResMode.includes('ultra') || exportResMode === 'print-ultra') {
+        // Pro-Tip: 6 gives you an ultra-crisp 2520x3360 resolution print file 
+        // while remaining safely beneath iOS Safari's strict 4096px canvas clip limit!
+        multiplier = 6; 
     }
     
     const targetWidth = baseWidth * multiplier;
@@ -417,7 +420,7 @@ function processExportPipeline() {
     const origInnerStyle = innerWrapper.style.cssText;
     const origMapStyle = mapDiv.style.cssText;
 
-    // FIXED OVERRIDE: Temporarily breaks the container out of standard screen bounds using position: fixed
+    // Expand layout canvas bounds programmatically across absolute layout horizons
     wrapper.style.cssText = `position: fixed; top: 0; left: 0; width: ${targetWidth}px; height: ${targetHeight}px; max-width: none !important; max-height: none !important; z-index: -9999; transform: none !important;`;
     innerWrapper.style.cssText = `width: 100% !important; height: 100% !important; transform: none !important; max-width: none !important; max-height: none !important;`;
     mapDiv.style.cssText = `width: 100% !important; height: 100% !important; max-width: none !important; max-height: none !important;`;
@@ -425,8 +428,8 @@ function processExportPipeline() {
     map.resize();
     executeVectorStyleOverrides();
 
-    // Safe timeout allows the browser thread to expand the canvas fully before snapshotting pixels
-    setTimeout(() => {
+    // FIXED: Listens directly to the vector tile engine idle gate instead of a static timer clock
+    map.once('idle', () => {
         try {
             const originalCanvas = map.getCanvas();
             const textVisible = document.getElementById('text-visible-toggle').checked;
@@ -457,7 +460,6 @@ function processExportPipeline() {
                 mapDestHeight = exportCanvas.height - (labelBlockHeightSrc * multiplier);
             }
             
-            // Draws full-bleed map vectors natively with matching zoom scales and layouts
             ctx.drawImage(originalCanvas, 0, 0, exportCanvas.width, mapDestHeight);
 
             if (softEdgeToggle) {
@@ -547,7 +549,6 @@ function processExportPipeline() {
         } catch (innerError) {
             console.error("Canvas composite step failure: ", innerError);
         } finally {
-            // Restore native responsive mobile sizing configurations instantly
             wrapper.style.cssText = origWrapperStyle;
             innerWrapper.style.cssText = origInnerStyle;
             mapDiv.style.cssText = origMapStyle;
@@ -559,5 +560,5 @@ function processExportPipeline() {
             exportBtn.innerText = "Generate Art File";
             exportBtn.disabled = false;
         }
-    }, 600); // 600ms timing gate guarantees the browser layout engine transitions frame allocations cleanly
+    });
 }
