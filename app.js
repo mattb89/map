@@ -398,7 +398,13 @@ function processExportPipeline() {
 
     const baseWidth = 420;
     const baseHeight = 560;
-    const multiplier = (exportResMode === 'print-high') ? 4 : 1.5;
+    
+    let multiplier = 1.5;
+    if (exportResMode === 'print-high') {
+        multiplier = 4;
+    } else if (exportResMode === 'print-ultra') {
+        multiplier = 8;
+    }
     
     const targetWidth = baseWidth * multiplier;
     const targetHeight = baseHeight * multiplier;
