@@ -58,6 +58,7 @@ function bindUIControlsProgrammatically() {
     const triggerInputs = [
         'text-visible-toggle', 'text-main-input', 'text-sub-input', 'font-select',
         'size-font-main', 'letter-spacing-main', 'text-position-toggle', 'width-highways',
+        'width-roads', 'opacity-lines', 'opacity-buildings',
         'style-soft-edges', 'vignette-intensity', 'color-bg', 'color-highways',
         'color-roads', 'color-buildings', 'color-water', 'color-parks', 'color-trains',
         'color-text-main', 'color-text-sub'
@@ -98,6 +99,9 @@ function executeVectorStyleOverrides() {
     const parkColorVal = document.getElementById('color-parks').value;
     const trainColorVal = document.getElementById('color-trains').value;
     const highwaySliderWidth = parseFloat(document.getElementById('width-highways').value);
+    const roadSliderWidth = parseFloat(document.getElementById('width-roads').value);
+    const lineOpacityVal = parseFloat(document.getElementById('opacity-lines').value);
+    const buildingOpacityVal = parseFloat(document.getElementById('opacity-buildings').value);
 
     const isHighwayRegex = /(motorway|trunk|primary|major|expressway|highway|link)/i;
     const isMinorRoadRegex = /(minor|residential|service|secondary|tertiary|street|road|path|track)/i;
@@ -125,12 +129,12 @@ function executeVectorStyleOverrides() {
         if (isBuildingRegex.test(fullLayerPath)) {
             if (layer.type === 'fill' || layer.type === 'fill-extrusion') {
                 map.setPaintProperty(layer.id, 'fill-color', buildingColorVal);
-                map.setPaintProperty(layer.id, 'fill-opacity', 0.85);
+                map.setPaintProperty(layer.id, 'fill-opacity', buildingOpacityVal);
             }
         }
         if (isWaterRegex.test(fullLayerPath)) {
             if (layer.type === 'fill') map.setPaintProperty(layer.id, 'fill-color', waterColorVal);
-            if (layer.  type === 'line') map.setPaintProperty(layer.id, 'line-color', waterColorVal);
+            if (layer.type === 'line') map.setPaintProperty(layer.id, 'line-color', waterColorVal);
         }
         if (isParkRegex.test(fullLayerPath)) {
             if (layer.type === 'fill') map.setPaintProperty(layer.id, 'fill-color', parkColorVal);
@@ -141,6 +145,7 @@ function executeVectorStyleOverrides() {
         if (layer.type === 'line' && isHighwayRegex.test(fullLayerPath)) {
             map.setPaintProperty(layer.id, 'line-color', highwayColorVal);
             map.setPaintProperty(layer.id, 'line-width', highwaySliderWidth);
+            map.setPaintProperty(layer.id, 'line-opacity', lineOpacityVal);
         }
         if (layer.type === 'line' && isMinorRoadRegex.test(fullLayerPath) && !isHighwayRegex.test(fullLayerPath)) {
             map.setPaintProperty(layer.id, 'line-color', roadColorVal);
@@ -148,8 +153,9 @@ function executeVectorStyleOverrides() {
                 'interpolate', ['linear'], ['zoom'],
                 1, 0.1,   
                 10, 0.2,  
-                14, 0.8 // previous value was 0.45 
+                14, roadSliderWidth 
             ]);
+            map.setPaintProperty(layer.id, 'line-opacity', lineOpacityVal);
         }
     });
 
