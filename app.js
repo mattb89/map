@@ -423,13 +423,10 @@ function processExportPipeline() {
     const baseWidth = 420;
     const baseHeight = 560;
     
-    // Dynamically map multipliers while safeguarding iOS hardware boundaries
     let multiplier = 1.5;
     if (exportResMode === 'print-high') {
-        multiplier = 4; // 300 DPI (1680x2240)
+        multiplier = 4; 
     } else if (exportResMode.includes('600') || exportResMode.includes('ultra') || exportResMode === 'print-ultra') {
-        // Pro-Tip: 6 gives you an ultra-crisp 2520x3360 resolution print file 
-        // while remaining safely beneath iOS Safari's strict 4096px canvas clip limit!
         multiplier = 6; 
     }
     
@@ -443,16 +440,18 @@ function processExportPipeline() {
     const origWrapperStyle = wrapper.style.cssText;
     const origInnerStyle = innerWrapper.style.cssText;
     const origMapStyle = mapDiv.style.cssText;
+    const origBodyOverflow = document.body.style.overflow;
 
-    // Expand layout canvas bounds programmatically across absolute layout horizons
-    wrapper.style.cssText = `position: fixed; top: 0; left: 0; width: ${targetWidth}px; height: ${targetHeight}px; max-width: none !important; max-height: none !important; z-index: -9999; transform: none !important;`;
+    // FIX 1: Force body overflow to visible and switch layout to position: absolute
+    // This shatters the iOS viewport ceiling, letting the canvas render flawlessly edge-to-edge
+    document.body.style.overflow = 'visible';
+    wrapper.style.cssText = `position: absolute; top: 0; left: 0; width: ${targetWidth}px; height: ${targetHeight}px; max-width: none !important; max-height: none !important; z-index: -9999; transform: none !important;`;
     innerWrapper.style.cssText = `width: 100% !important; height: 100% !important; transform: none !important; max-width: none !important; max-height: none !important;`;
     mapDiv.style.cssText = `width: 100% !important; height: 100% !important; max-width: none !important; max-height: none !important;`;
 
     map.resize();
     executeVectorStyleOverrides();
 
-    // FIXED: Listens directly to the vector tile engine idle gate instead of a static timer clock
     map.once('idle', () => {
         try {
             const originalCanvas = map.getCanvas();
@@ -484,10 +483,8 @@ function processExportPipeline() {
                 mapDestHeight = exportCanvas.height - (labelBlockHeightSrc * multiplier);
             }
             
-// Draw the clean, full-bleed map graphics buffer
             ctx.drawImage(originalCanvas, 0, 0, exportCanvas.width, mapDestHeight);
 
-            // Draw vignette edge fades
             if (softEdgeToggle) {
                 ctx.globalCompositeOperation = "source-over";
                 const shadowBorder = (vignetteIntensity / 1.2) * multiplier;
@@ -498,23 +495,21 @@ function processExportPipeline() {
                 ctx.strokeRect(shadowBorder/2, shadowBorder/2, exportCanvas.width - shadowBorder, mapDestHeight - shadowBorder);
             }
             
-            // =========================================================================
-            // CRITICAL MOBILE SAFARI FIX: Explicitly flush the shadow pipeline state
-            // This shatters the hard-edged shadow cache before it leaks onto our banner!
-            // =========================================================================
+            // Clear out canvas shadow states cleanly to protect the banner elements below
             ctx.shadowBlur = 0;
             ctx.shadowColor = "transparent";
             ctx.shadowOffsetX = 0;
             ctx.shadowOffsetY = 0;
 
-            // Draw crisp high-res poster typography
             if (textVisible) {
                 ctx.textAlign = 'center';
                 ctx.textBaseline = 'middle';
 
                 if (textFloatToggle) {
                     const overlayCenterY = exportCanvas.height - (60 * multiplier);
-                    ctx.fillStyle = "rgba(0,0,0,0.85)";
+                    
+                    // FIX 2: Dynamically match your designer theme background color instead of forcing charcoal black
+                    ctx.fillStyle = bgStyle;
                     ctx.fillRect(exportCanvas.width * 0.12, overlayCenterY - (30 * multiplier), exportCanvas.width * 0.76, 65 * multiplier);
                     
                     ctx.fillStyle = mainTextClass;
@@ -528,8 +523,6 @@ function processExportPipeline() {
                     ctx.fillText(subtitleValue, exportCanvas.width / 2, overlayCenterY + (14 * multiplier));
                 } else {
                     const bannerCenterY = mapDestHeight + ((exportCanvas.height - mapDestHeight) / 2);
-                    
-                    // This fill operation will now cleanly render your true white/light theme background colors
                     ctx.fillStyle = bgStyle;
                     ctx.fillRect(0, mapDestHeight, exportCanvas.width, exportCanvas.height - mapDestHeight);
 
@@ -586,9 +579,11 @@ function processExportPipeline() {
         } catch (innerError) {
             console.error("Canvas composite step failure: ", innerError);
         } finally {
+            // Revert original structural layout rules safely
             wrapper.style.cssText = origWrapperStyle;
             innerWrapper.style.cssText = origInnerStyle;
             mapDiv.style.cssText = origMapStyle;
+            document.body.style.overflow = origBodyOverflow;
             
             map.resize();
             executeVectorStyleOverrides();
