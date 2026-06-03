@@ -14,7 +14,31 @@ const themePresets = {
     'cyber-neon': { title: 'Neon', bg: '#08090f', highway: '#00ffcc', roads: '#1a233a', buildings: '#101524', water: '#0d1b2a', parks: '#0a1a15', trains: '#ff0055', textMain: '#00ffcc', textSub: '#8fa0b2' },
     'mid-century-navy': { title: 'Navy', bg: '#162b3d', highway: '#fca34d', roads: '#3a5f7d', buildings: '#223f5a', water: '#1d486c', parks: '#1f3a3a', trains: '#8da9c4', textMain: '#fdf2a7', textSub: '#a5c4d4' },
     'emerald-forest': { title: 'Emerald', bg: '#0b1d12', highway: '#c3a35a', roads: '#1b3b22', buildings: '#122918', water: '#08160e', parks: '#1c4228', trains: '#947a43', textMain: '#ebd59b', textSub: '#709377' },
-    'warm-terracotta': { title: 'Clay', bg: '#f4ebe1', highway: '#b85032', roads: '#d99b77', buildings: '#ebd0be', water: '#e0c3b1', parks: '#e3dfd5', trains: '#823720', textMain: '#612312', textSub: '#9c6f59' }
+    'warm-terracotta': { title: 'Clay', bg: '#f4ebe1', highway: '#b85032', roads: '#d99b77', buildings: '#ebd0be', water: '#e0c3b1', parks: '#e3dfd5', trains: '#823720', textMain: '#612312', textSub: '#9c6f59' },
+    'urban-hollywood': { 
+        title: 'Hollywood', 
+        bg: '#dbb1bc',          // Dusty Rose Base
+        highway: '#ffffff',     // Crisp White Arteries
+        roads: '#f7e8df',       // Soft Cream Local Streets
+        buildings: '#9e6c7d',   // Deep Mauve Block Outlines
+        water: '#6e959d',       // Sophisticated Calm Teal
+        parks: '#e6c875',       // Warm Mustard Fill
+        trains: '#826c9d',       // Subdued Lavender Tracks
+        textMain: '#ffffff', 
+        textSub: '#f7e8df' 
+    },
+    'district-pop': { 
+        title: 'District Pop', 
+        bg: '#f4f4f2',          // Ultra Light Gallery Grey
+        highway: '#1a1a1a',     // High-Contrast Charcoal
+        roads: '#555555',       // Delicate Slate Line Grid
+        buildings: '#d96b43',   // Terracotta Pop Blocks
+        water: '#7cb2c4',       // Dynamic Sky Blue
+        parks: '#7da35d',       // Leafy Green Elements
+        trains: '#333333',       // Solid Track Lines
+        textMain: '#1a1a1a', 
+        textSub: '#555555' 
+    }
 };
 
 // INITIALIZATION PIPELINE: Safe gate ensures DOM nodes are completely constructed before map execution
@@ -460,8 +484,10 @@ function processExportPipeline() {
                 mapDestHeight = exportCanvas.height - (labelBlockHeightSrc * multiplier);
             }
             
+// Draw the clean, full-bleed map graphics buffer
             ctx.drawImage(originalCanvas, 0, 0, exportCanvas.width, mapDestHeight);
 
+            // Draw vignette edge fades
             if (softEdgeToggle) {
                 ctx.globalCompositeOperation = "source-over";
                 const shadowBorder = (vignetteIntensity / 1.2) * multiplier;
@@ -470,9 +496,18 @@ function processExportPipeline() {
                 ctx.shadowBlur = vignetteIntensity * multiplier;
                 ctx.shadowColor = bgStyle;
                 ctx.strokeRect(shadowBorder/2, shadowBorder/2, exportCanvas.width - shadowBorder, mapDestHeight - shadowBorder);
-                ctx.shadowBlur = 0; 
             }
+            
+            // =========================================================================
+            // CRITICAL MOBILE SAFARI FIX: Explicitly flush the shadow pipeline state
+            // This shatters the hard-edged shadow cache before it leaks onto our banner!
+            // =========================================================================
+            ctx.shadowBlur = 0;
+            ctx.shadowColor = "transparent";
+            ctx.shadowOffsetX = 0;
+            ctx.shadowOffsetY = 0;
 
+            // Draw crisp high-res poster typography
             if (textVisible) {
                 ctx.textAlign = 'center';
                 ctx.textBaseline = 'middle';
@@ -493,6 +528,8 @@ function processExportPipeline() {
                     ctx.fillText(subtitleValue, exportCanvas.width / 2, overlayCenterY + (14 * multiplier));
                 } else {
                     const bannerCenterY = mapDestHeight + ((exportCanvas.height - mapDestHeight) / 2);
+                    
+                    // This fill operation will now cleanly render your true white/light theme background colors
                     ctx.fillStyle = bgStyle;
                     ctx.fillRect(0, mapDestHeight, exportCanvas.width, exportCanvas.height - mapDestHeight);
 
