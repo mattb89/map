@@ -116,6 +116,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
 function bindUIControlsProgrammatically() {
     const triggerInputs = [
+        'poster-aspect-ratio',
         'text-visible-toggle', 'text-main-input', 'text-sub-input', 'font-select',
         'size-font-main', 'letter-spacing-main', 'text-position-toggle', 'width-highways',
         'width-roads', 'opacity-lines', 'opacity-buildings',
@@ -269,7 +270,27 @@ function renderDOMTypographyUpdates() {
     }
     
     const posterFrame = document.getElementById('poster-frame');
-    if (posterFrame) posterFrame.style.backgroundColor = bgVal;
+    if (posterFrame) {
+        posterFrame.style.backgroundColor = bgVal;
+        
+        // Dynamic Preview Aspect Ratio Switcher
+        const aspectRatioMode = document.getElementById('poster-aspect-ratio').value;
+        if (aspectRatioMode === 'landscape-4-3') {
+            posterFrame.style.aspectRatio = "4 / 3";
+            posterFrame.style.width = "100%";
+        } else if (aspectRatioMode === 'widescreen-16-9') {
+            posterFrame.style.aspectRatio = "16 / 9";
+            posterFrame.style.width = "100%";
+        } else if (aspectRatioMode === 'square-1-1') {
+            posterFrame.style.aspectRatio = "1 / 1";
+            posterFrame.style.width = "100%";
+        } else {
+            // Default 3:4 Portrait
+            posterFrame.style.aspectRatio = "3 / 4";
+            // Keeps portrait looking crisp and proportional within mobile bounds
+            posterFrame.style.width = "min(100%, 420px)"; 
+        }
+    }
     
     const mainLabel = document.getElementById('label-main');
     if (mainLabel) {
@@ -451,20 +472,29 @@ function processExportPipeline() {
     if (!map) return;
     
     const exportResMode = document.getElementById('export-resolution').value;
+    const aspectRatioMode = document.getElementById('poster-aspect-ratio').value; // Grab selection
     const exportBtn = document.getElementById('btn-export');
     
     exportBtn.innerText = "Compiling Print File...";
     exportBtn.disabled = true;
 
-    const baseWidth = 420;
-    const baseHeight = 560;
+    // DYNAMIC CORE: Base dimensions recalculate automatically based on layout orientation
+    let baseWidth = 420;
+    let baseHeight = 560; // Default 3:4 Portrait base
     
-    let multiplier = 1.5;
-    if (exportResMode === 'print-high') {
-        multiplier = 4; 
-    } else if (exportResMode.includes('600') || exportResMode.includes('ultra') || exportResMode === 'print-ultra') {
-        multiplier = 6; 
+    if (aspectRatioMode === 'landscape-4-3') {
+        baseWidth = 560;
+        baseHeight = 420;
+    } else if (aspectRatioMode === 'widescreen-16-9') {
+        baseWidth = 746; // Calculated matching 16:9 horizon lines cleanly
+        baseHeight = 420;
+    } else if (aspectRatioMode === 'square-1-1') {
+        baseWidth = 500;
+        baseHeight = 500;
     }
+    
+    const exportResMultiplier = (exportResMode === 'print-high') ? 4 : (exportResMode.includes('600') ? 6 : 1.5);
+    const multiplier = exportResMultiplier; 
     
     const targetWidth = baseWidth * multiplier;
     const targetHeight = baseHeight * multiplier;
