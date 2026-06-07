@@ -272,23 +272,32 @@ function renderDOMTypographyUpdates() {
     const posterFrame = document.getElementById('poster-frame');
     if (posterFrame) {
         posterFrame.style.backgroundColor = bgVal;
+    }
+    
+    const posterWrapper = document.getElementById('poster-wrapper');
+    if (posterWrapper) {
+        posterWrapper.style.height = "auto"; // Override the fixed CSS height
         
-        // Dynamic Preview Aspect Ratio Switcher
+        // Dynamic Preview Aspect Ratio Switcher targeting the outer wrapper
         const aspectRatioMode = document.getElementById('poster-aspect-ratio').value;
         if (aspectRatioMode === 'landscape-4-3') {
-            posterFrame.style.aspectRatio = "4 / 3";
-            posterFrame.style.width = "100%";
+            posterWrapper.style.aspectRatio = "4 / 3";
+            posterWrapper.style.width = "min(100%, 560px)";
         } else if (aspectRatioMode === 'widescreen-16-9') {
-            posterFrame.style.aspectRatio = "16 / 9";
-            posterFrame.style.width = "100%";
+            posterWrapper.style.aspectRatio = "16 / 9";
+            posterWrapper.style.width = "min(100%, 746px)";
         } else if (aspectRatioMode === 'square-1-1') {
-            posterFrame.style.aspectRatio = "1 / 1";
-            posterFrame.style.width = "100%";
+            posterWrapper.style.aspectRatio = "1 / 1";
+            posterWrapper.style.width = "min(100%, 500px)";
         } else {
             // Default 3:4 Portrait
-            posterFrame.style.aspectRatio = "3 / 4";
-            // Keeps portrait looking crisp and proportional within mobile bounds
-            posterFrame.style.width = "min(100%, 420px)"; 
+            posterWrapper.style.aspectRatio = "3 / 4";
+            posterWrapper.style.width = "min(100%, 420px)"; 
+        }
+
+        // Force MapLibre to redraw the canvas to fit the newly sized wrapper
+        if (window.mapInstance) {
+            window.mapInstance.resize();
         }
     }
     
