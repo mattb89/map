@@ -38,6 +38,42 @@ const themePresets = {
         trains: '#333333',       // Solid Track Lines
         textMain: '#1a1a1a', 
         textSub: '#555555' 
+    },
+    'architect-blueprint': { 
+        title: 'Blueprint', 
+        bg: '#121f35',          // Deep Navy Blueprint
+        highway: '#ffffff',     // Technical White Arteries
+        roads: '#7791b7',       // Soft Blueprint Grid
+        buildings: '#1a2c49',   // Subtle Navy Block Structure
+        water: '#112d4a',       // Darker Navy Features
+        parks: '#121f35',       // Match Background (Hidden)
+        trains: '#5f9aff',       // Bright Circuit Blue
+        textMain: '#ffffff', 
+        textSub: '#7791b7' 
+    },
+    'golden-foil': { 
+        title: 'Golden Foil', 
+        bg: '#000000',          // Deep Black Velvet
+        highway: '#d4af37',     // Stamped Polished Gold
+        roads: '#b0912d',       // Matte Gold Local Grid
+        buildings: '#423712',   // Hidden Amber Blocks
+        water: '#1a170b',       // Deep Amber Shadow
+        parks: '#141a0f',       // Hidden Landcover
+        trains: '#ff8c00',       // Dark Orange Stamping
+        textMain: '#d4af37', 
+        textSub: '#aaaaaa' 
+    },
+    'terracotta-dust': { 
+        title: 'Clay', 
+        bg: '#f4ebe1',          // Sandstone Paper Base
+        highway: '#b85032',     // Terracotta Dust Arteries
+        roads: '#d99b77',       // Dusty Rose Grid
+        buildings: '#ebd0be',   // Peach Outline Structure
+        water: '#e0c3b1',       // Soft Beige Features
+        parks: '#f4ebe1',       // Hidden (Matches BG)
+        trains: '#823720',       // Deep Clay Tracks
+        textMain: '#612312', 
+        textSub: '#9c6f59' 
     }
 };
 
