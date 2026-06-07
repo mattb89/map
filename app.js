@@ -51,29 +51,29 @@ const themePresets = {
         textMain: '#ffffff', 
         textSub: '#7791b7' 
     },
-    'golden-foil': { 
-        title: 'Golden Foil', 
-        bg: '#000000',          // Deep Black Velvet
-        highway: '#d4af37',     // Stamped Polished Gold
-        roads: '#b0912d',       // Matte Gold Local Grid
-        buildings: '#423712',   // Hidden Amber Blocks
-        water: '#1a170b',       // Deep Amber Shadow
-        parks: '#141a0f',       // Hidden Landcover
-        trains: '#ff8c00',       // Dark Orange Stamping
-        textMain: '#d4af37', 
-        textSub: '#aaaaaa' 
+    'district-pop': { 
+        title: 'District Pop_v2', 
+        bg: '#f4f4f2',          // Light Gallery Grey Landmass
+        highway: '#1a1a1a',     // High-Contrast Charcoal Arteries
+        roads: '#555555',       // Subtle Slate Street Grid
+        buildings: '#d96b43',   // Terracotta Pop Building Fills
+        water: '#7cb2c4',       // Pastel Sky Blue Rivers/Lakes
+        parks: '#7da35d',       // Leafy Green Fills
+        trains: '#333333',       // Dark Charcoal Railway Lines
+        textMain: '#1a1a1a',    // Strong Charcoal Title
+        textSub: '#555555'      // Balanced Slate Subtitle
     },
-    'terracotta-dust': { 
-        title: 'Clay', 
-        bg: '#f4ebe1',          // Sandstone Paper Base
-        highway: '#b85032',     // Terracotta Dust Arteries
-        roads: '#d99b77',       // Dusty Rose Grid
-        buildings: '#ebd0be',   // Peach Outline Structure
-        water: '#e0c3b1',       // Soft Beige Features
-        parks: '#f4ebe1',       // Hidden (Matches BG)
-        trains: '#823720',       // Deep Clay Tracks
-        textMain: '#612312', 
-        textSub: '#9c6f59' 
+    'cyber-neon': { 
+        title: 'Cyber Neon_v2', 
+        bg: '#08090f',          // Deep Midnight/Synthetic Velvet Night
+        highway: '#00ffcc',     // Electric Radium Cyan Highways
+        roads: '#1a233a',       // Dim Indigo Local Arteries
+        buildings: '#101524',   // Dark Synthetic Purple Blobs
+        water: '#0d1b2a',       // Subdued Stealth Teal Basins
+        parks: '#0a1a15',       // Dark Silhouette Forest Landcover
+        trains: '#ff0055',       // Hot Magenta Railway Tracks
+        textMain: '#00ffcc',    // Glowing Radium Title
+        textSub: '#8fa0b2'      // Cool Metallic Slate Subtitle
     }
 };
 
