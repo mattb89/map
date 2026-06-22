@@ -22,9 +22,11 @@ const themePresets = {
 
 // INITIALIZATION PIPELINE
 document.addEventListener("DOMContentLoaded", () => {
+
     window.mapInstance = new maplibregl.Map({
         container: 'map',
-        style: 'https://tiles.openfreemap.org/styles/dark', 
+        // Change 'dark' to 'liberty' to force the server to send the park polygons
+        style: 'https://tiles.openfreemap.org/styles/liberty', 
         center: [9.0908, 48.7297], 
         zoom: 14.1, 
         attributionControl: false, 
