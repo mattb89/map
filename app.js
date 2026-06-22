@@ -1,6 +1,6 @@
 /**
- * CityMapper Studio Pro Engine Logic Controller Module v16.2
- * Production Modular Guarded Architecture System - In-Place Breakout Capture
+ * CityMapper Studio Pro Engine Logic Controller Module
+ * Production Modular Guarded Architecture System
  */
 
 window.mapInstance = null;
@@ -8,76 +8,19 @@ let uiDebounceTimer = null;
 let isUpdatingStyles = false; 
 
 const themePresets = {
-    'gold-dark': { title: 'Gold', bg: '#000000', highway: '#d4af37', roads: '#b0912d', buildings: '#423712', water: '#1a170b', parks: '#141a0f', trains: '#7a6221', textMain: '#d4af37', textSub: '#888888' },
     'minimal-gray': { title: 'Charcoal', bg: '#ffffff', highway: '#222222', roads: '#777777', buildings: '#e0e0e0', water: '#f0f0f0', parks: '#ebf2ea', trains: '#bcbcbc', textMain: '#111111', textSub: '#555555' },
-    'lavender-light': { title: 'Lavender', bg: '#f3f1f7', highway: '#4a3b63', roads: '#8c829e', buildings: '#b8afc8', water: '#d2cbdc', parks: '#e6f0fa', trains: '#a399b3', textMain: '#36294d', textSub: '#6b617a' },
-    'cyber-neon': { title: 'Neon', bg: '#08090f', highway: '#00ffcc', roads: '#1a233a', buildings: '#101524', water: '#0d1b2a', parks: '#0a1a15', trains: '#ff0055', textMain: '#00ffcc', textSub: '#8fa0b2' },
-    'mid-century-navy': { title: 'Navy', bg: '#162b3d', highway: '#fca34d', roads: '#3a5f7d', buildings: '#223f5a', water: '#1d486c', parks: '#1f3a3a', trains: '#8da9c4', textMain: '#fdf2a7', textSub: '#a5c4d4' },
-    'emerald-forest': { title: 'Emerald', bg: '#0b1d12', highway: '#c3a35a', roads: '#1b3b22', buildings: '#122918', water: '#08160e', parks: '#1c4228', trains: '#947a43', textMain: '#ebd59b', textSub: '#709377' },
+    'cyber-neon': { title: 'Cyber Neon', bg: '#08090f', highway: '#00ffcc', roads: '#1a233a', buildings: '#101524', water: '#0d1b2a', parks: '#0a1a15', trains: '#ff0055', textMain: '#00ffcc', textSub: '#8fa0b2' },
+    'district-pop': { title: 'District Pop', bg: '#f4f4f2', highway: '#1a1a1a', roads: '#555555', buildings: '#d96b43', water: '#7cb2c4', parks: '#7da35d', trains: '#333333', textMain: '#1a1a1a', textSub: '#555555' },
+    'architect-blueprint': { title: 'Blueprint', bg: '#121f35', highway: '#ffffff', roads: '#7791b7', buildings: '#1a2c49', water: '#112d4a', parks: '#121f35', trains: '#5f9aff', textMain: '#ffffff', textSub: '#7791b7' },
     'warm-terracotta': { title: 'Clay', bg: '#f4ebe1', highway: '#b85032', roads: '#d99b77', buildings: '#ebd0be', water: '#e0c3b1', parks: '#e3dfd5', trains: '#823720', textMain: '#612312', textSub: '#9c6f59' },
-    'urban-hollywood': { 
-        title: 'Hollywood', 
-        bg: '#dbb1bc',          // Dusty Rose Base
-        highway: '#ffffff',     // Crisp White Arteries
-        roads: '#f7e8df',       // Soft Cream Local Streets
-        buildings: '#9e6c7d',   // Deep Mauve Block Outlines
-        water: '#6e959d',       // Sophisticated Calm Teal
-        parks: '#e6c875',       // Warm Mustard Fill
-        trains: '#826c9d',       // Subdued Lavender Tracks
-        textMain: '#ffffff', 
-        textSub: '#f7e8df' 
-    },
-    'district-pop': { 
-        title: 'District Pop', 
-        bg: '#f4f4f2',          // Ultra Light Gallery Grey
-        highway: '#1a1a1a',     // High-Contrast Charcoal
-        roads: '#555555',       // Delicate Slate Line Grid
-        buildings: '#d96b43',   // Terracotta Pop Blocks
-        water: '#7cb2c4',       // Dynamic Sky Blue
-        parks: '#7da35d',       // Leafy Green Elements
-        trains: '#333333',       // Solid Track Lines
-        textMain: '#1a1a1a', 
-        textSub: '#555555' 
-    },
-    'architect-blueprint': { 
-        title: 'Blueprint', 
-        bg: '#121f35',          // Deep Navy Blueprint
-        highway: '#ffffff',     // Technical White Arteries
-        roads: '#7791b7',       // Soft Blueprint Grid
-        buildings: '#1a2c49',   // Subtle Navy Block Structure
-        water: '#112d4a',       // Darker Navy Features
-        parks: '#121f35',       // Match Background (Hidden)
-        trains: '#5f9aff',       // Bright Circuit Blue
-        textMain: '#ffffff', 
-        textSub: '#7791b7' 
-    },
-    'district-pop': { 
-        title: 'District Pop_v2', 
-        bg: '#f4f4f2',          // Light Gallery Grey Landmass
-        highway: '#1a1a1a',     // High-Contrast Charcoal Arteries
-        roads: '#555555',       // Subtle Slate Street Grid
-        buildings: '#d96b43',   // Terracotta Pop Building Fills
-        water: '#7cb2c4',       // Pastel Sky Blue Rivers/Lakes
-        parks: '#7da35d',       // Leafy Green Fills
-        trains: '#333333',       // Dark Charcoal Railway Lines
-        textMain: '#1a1a1a',    // Strong Charcoal Title
-        textSub: '#555555'      // Balanced Slate Subtitle
-    },
-    'cyber-neon': { 
-        title: 'Cyber Neon_v2', 
-        bg: '#08090f',          // Deep Midnight/Synthetic Velvet Night
-        highway: '#00ffcc',     // Electric Radium Cyan Highways
-        roads: '#1a233a',       // Dim Indigo Local Arteries
-        buildings: '#101524',   // Dark Synthetic Purple Blobs
-        water: '#0d1b2a',       // Subdued Stealth Teal Basins
-        parks: '#0a1a15',       // Dark Silhouette Forest Landcover
-        trains: '#ff0055',       // Hot Magenta Railway Tracks
-        textMain: '#00ffcc',    // Glowing Radium Title
-        textSub: '#8fa0b2'      // Cool Metallic Slate Subtitle
-    }
+    'gold-dark': { title: 'Gold Foil', bg: '#000000', highway: '#d4af37', roads: '#b0912d', buildings: '#423712', water: '#1a170b', parks: '#141a0f', trains: '#7a6221', textMain: '#d4af37', textSub: '#888888' },
+    'urban-hollywood': { title: 'Hollywood', bg: '#dbb1bc', highway: '#ffffff', roads: '#f7e8df', buildings: '#9e6c7d', water: '#6e959d', parks: '#e6c875', trains: '#826c9d', textMain: '#ffffff', textSub: '#f7e8df' },
+    'lavender-light': { title: 'Lavender', bg: '#f3f1f7', highway: '#4a3b63', roads: '#8c829e', buildings: '#b8afc8', water: '#d2cbdc', parks: '#e6f0fa', trains: '#a399b3', textMain: '#36294d', textSub: '#6b617a' },
+    'mid-century-navy': { title: 'Navy', bg: '#162b3d', highway: '#fca34d', roads: '#3a5f7d', buildings: '#223f5a', water: '#1d486c', parks: '#1f3a3a', trains: '#8da9c4', textMain: '#fdf2a7', textSub: '#a5c4d4' },
+    'emerald-forest': { title: 'Emerald', bg: '#0b1d12', highway: '#c3a35a', roads: '#1b3b22', buildings: '#122918', water: '#08160e', parks: '#1c4228', trains: '#947a43', textMain: '#ebd59b', textSub: '#709377' }
 };
 
-// INITIALIZATION PIPELINE: Safe gate ensures DOM nodes are completely constructed before map execution
+// INITIALIZATION PIPELINE
 document.addEventListener("DOMContentLoaded", () => {
     window.mapInstance = new maplibregl.Map({
         container: 'map',
@@ -89,7 +32,6 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
     window.mapInstance.on('load', () => { 
-        // Reparent the vignette node immediately on boot to prevent iOS scale rounding bugs
         const vignette = document.getElementById('map-vignette');
         const boundingBox = document.getElementById('map-bounding-box');
         if (vignette && boundingBox) boundingBox.appendChild(vignette);
@@ -159,6 +101,7 @@ function executeVectorStyleOverrides() {
     const waterColorVal = document.getElementById('color-water').value;
     const parkColorVal = document.getElementById('color-parks').value;
     const trainColorVal = document.getElementById('color-trains').value;
+    
     const highwaySliderWidth = parseFloat(document.getElementById('width-highways').value);
     const roadSliderWidth = parseFloat(document.getElementById('width-roads').value);
     const lineOpacityVal = parseFloat(document.getElementById('opacity-lines').value);
@@ -174,18 +117,20 @@ function executeVectorStyleOverrides() {
     const layers = map.getStyle().layers;
 
     layers.forEach(layer => {
-        if (layer.type === 'background') {
-            map.setPaintProperty(layer.id, 'background-color', bgStyleVal);
-        }
-        if (layer.type === 'fill' && (layer.id.includes('land') || layer.id.includes('area') || layer.id.includes('background'))) {
-            if (!isParkRegex.test(layer.id)) {
-                map.setPaintProperty(layer.id, 'fill-color', bgStyleVal);
-            }
-        }
-        
         const layerSrc = layer.source || '';
         const sourceLayerStr = layer['source-layer'] || layer.sourceLayer || '';
         const fullLayerPath = `${layer.id} ${layerSrc} ${sourceLayerStr}`;
+
+        if (layer.type === 'background') {
+            map.setPaintProperty(layer.id, 'background-color', bgStyleVal);
+        }
+        
+        // Background Paint Guard - Prevents overwriting park landmasses
+        if (layer.type === 'fill' && (layer.id.includes('land') || layer.id.includes('area') || layer.id.includes('background'))) {
+            if (!isParkRegex.test(fullLayerPath)) {
+                map.setPaintProperty(layer.id, 'fill-color', bgStyleVal);
+            }
+        }
 
         if (isBuildingRegex.test(fullLayerPath)) {
             if (layer.type === 'fill' || layer.type === 'fill-extrusion') {
@@ -197,9 +142,16 @@ function executeVectorStyleOverrides() {
             if (layer.type === 'fill') map.setPaintProperty(layer.id, 'fill-color', waterColorVal);
             if (layer.type === 'line') map.setPaintProperty(layer.id, 'line-color', waterColorVal);
         }
+        
+        // Hardened Park Pipeline - Forces visibility on dark maps
         if (isParkRegex.test(fullLayerPath)) {
-            if (layer.type === 'fill') map.setPaintProperty(layer.id, 'fill-color', parkColorVal);
+            if (layer.type === 'fill') {
+                map.setPaintProperty(layer.id, 'fill-color', parkColorVal);
+                map.setPaintProperty(layer.id, 'fill-opacity', 1.0);
+                map.setLayoutProperty(layer.id, 'visibility', 'visible');
+            }
         }
+        
         if (isTrainRegex.test(fullLayerPath)) {
             if (layer.type === 'line') map.setPaintProperty(layer.id, 'line-color', trainColorVal);
         }
@@ -270,35 +222,30 @@ function renderDOMTypographyUpdates() {
     }
     
     const posterFrame = document.getElementById('poster-frame');
-    if (posterFrame) {
-        posterFrame.style.backgroundColor = bgVal;
-    }
-    
     const posterWrapper = document.getElementById('poster-wrapper');
+    const aspectRatioMode = document.getElementById('poster-aspect-ratio').value;
+    
+    if (posterFrame) posterFrame.style.backgroundColor = bgVal;
+    
     if (posterWrapper) {
-        posterWrapper.style.height = "auto"; // Override the fixed CSS height
+        posterWrapper.style.height = "auto";
+        if (posterFrame) posterFrame.style.height = "auto";
         
-        // Dynamic Preview Aspect Ratio Switcher targeting the outer wrapper
-        const aspectRatioMode = document.getElementById('poster-aspect-ratio').value;
         if (aspectRatioMode === 'landscape-4-3') {
             posterWrapper.style.aspectRatio = "4 / 3";
-            posterWrapper.style.width = "min(100%, 560px)";
+            posterWrapper.style.width = "100%";
         } else if (aspectRatioMode === 'widescreen-16-9') {
             posterWrapper.style.aspectRatio = "16 / 9";
-            posterWrapper.style.width = "min(100%, 746px)";
+            posterWrapper.style.width = "100%";
         } else if (aspectRatioMode === 'square-1-1') {
             posterWrapper.style.aspectRatio = "1 / 1";
-            posterWrapper.style.width = "min(100%, 500px)";
+            posterWrapper.style.width = "100%";
         } else {
-            // Default 3:4 Portrait
             posterWrapper.style.aspectRatio = "3 / 4";
             posterWrapper.style.width = "min(100%, 420px)"; 
         }
 
-        // Force MapLibre to redraw the canvas to fit the newly sized wrapper
-        if (window.mapInstance) {
-            window.mapInstance.resize();
-        }
+        if (window.mapInstance) window.mapInstance.resize();
     }
     
     const mainLabel = document.getElementById('label-main');
@@ -394,25 +341,29 @@ function toggleMapLayers() {
     const isTrainRegex = /(rail|train|transit|railway|subway)/i;
 
     layers.forEach(layer => {
+        const layerSrc = layer.source || '';
+        const sourceLayerStr = layer['source-layer'] || layer.sourceLayer || '';
+        const fullLayerPath = `${layer.id} ${layerSrc} ${sourceLayerStr}`;
+
         if (layer.type === 'symbol') {
             map.setLayoutProperty(layer.id, 'visibility', showLabels ? 'visible' : 'none');
         }
-        if (isBuildingRegex.test(layer.id) || (layer.sourceLayer && isBuildingRegex.test(layer.sourceLayer))) {
+        if (isBuildingRegex.test(fullLayerPath)) {
             map.setLayoutProperty(layer.id, 'visibility', showBuildings ? 'visible' : 'none');
         }
-        if (isWaterRegex.test(layer.id) || (layer.sourceLayer && isWaterRegex.test(layer.sourceLayer))) {
+        if (isWaterRegex.test(fullLayerPath)) {
             map.setLayoutProperty(layer.id, 'visibility', showWater ? 'visible' : 'none');
         }
-        if (isParkRegex.test(layer.id)) {
+        if (isParkRegex.test(fullLayerPath)) {
             map.setLayoutProperty(layer.id, 'visibility', showParks ? 'visible' : 'none');
         }
-        if (isTrainRegex.test(layer.id)) {
+        if (isTrainRegex.test(fullLayerPath)) {
             map.setLayoutProperty(layer.id, 'visibility', showTrains ? 'visible' : 'none');
         }
         if (layer.id.includes('road') || layer.id.includes('transportation') || layer.id.includes('link')) {
-            if (isHighwayRegex.test(layer.id)) {
+            if (isHighwayRegex.test(fullLayerPath)) {
                 map.setLayoutProperty(layer.id, 'visibility', showHighways ? 'visible' : 'none');
-            } else if (isMinorRoadRegex.test(layer.id)) {
+            } else if (isMinorRoadRegex.test(fullLayerPath)) {
                 map.setLayoutProperty(layer.id, 'visibility', showRoads ? 'visible' : 'none');
             }
         }
@@ -475,27 +426,26 @@ document.addEventListener('click', (e) => {
     }
 });
 
-// FIXED PRODUCTION ENGINE: Employs In-Place Layout Breakout to completely bypass mobile Safari layout squeezing
+// FIXED PRODUCTION ENGINE: Mobile iOS Breakout + Dynamic Layout Math
 function processExportPipeline() {
     const map = window.mapInstance;
     if (!map) return;
     
     const exportResMode = document.getElementById('export-resolution').value;
-    const aspectRatioMode = document.getElementById('poster-aspect-ratio').value; // Grab selection
+    const aspectRatioMode = document.getElementById('poster-aspect-ratio').value; 
     const exportBtn = document.getElementById('btn-export');
     
     exportBtn.innerText = "Compiling Print File...";
     exportBtn.disabled = true;
 
-    // DYNAMIC CORE: Base dimensions recalculate automatically based on layout orientation
     let baseWidth = 420;
-    let baseHeight = 560; // Default 3:4 Portrait base
+    let baseHeight = 560; 
     
     if (aspectRatioMode === 'landscape-4-3') {
         baseWidth = 560;
         baseHeight = 420;
     } else if (aspectRatioMode === 'widescreen-16-9') {
-        baseWidth = 746; // Calculated matching 16:9 horizon lines cleanly
+        baseWidth = 746; 
         baseHeight = 420;
     } else if (aspectRatioMode === 'square-1-1') {
         baseWidth = 500;
@@ -517,8 +467,6 @@ function processExportPipeline() {
     const origMapStyle = mapDiv.style.cssText;
     const origBodyOverflow = document.body.style.overflow;
 
-    // FIX 1: Force body overflow to visible and switch layout to position: absolute
-    // This shatters the iOS viewport ceiling, letting the canvas render flawlessly edge-to-edge
     document.body.style.overflow = 'visible';
     wrapper.style.cssText = `position: absolute; top: 0; left: 0; width: ${targetWidth}px; height: ${targetHeight}px; max-width: none !important; max-height: none !important; z-index: -9999; transform: none !important;`;
     innerWrapper.style.cssText = `width: 100% !important; height: 100% !important; transform: none !important; max-width: none !important; max-height: none !important;`;
@@ -570,7 +518,6 @@ function processExportPipeline() {
                 ctx.strokeRect(shadowBorder/2, shadowBorder/2, exportCanvas.width - shadowBorder, mapDestHeight - shadowBorder);
             }
             
-            // Clear out canvas shadow states cleanly to protect the banner elements below
             ctx.shadowBlur = 0;
             ctx.shadowColor = "transparent";
             ctx.shadowOffsetX = 0;
@@ -583,9 +530,7 @@ function processExportPipeline() {
                 if (textFloatToggle) {
                     const overlayCenterY = exportCanvas.height - (60 * multiplier);
                     
-                    // FIX 2: Dynamically match your designer theme background color instead of forcing charcoal black
                     ctx.fillStyle = bgStyle;
-                    //ctx.fillRect(exportCanvas.width * 0.12, overlayCenterY - (30 * multiplier), exportCanvas.width * 0.76, 65 * multiplier);
                     const boxHeight = 65 * multiplier;
                     const boxTop = overlayCenterY - (30 * multiplier);
                     ctx.fillRect(0, boxTop, exportCanvas.width, boxHeight);
@@ -657,7 +602,6 @@ function processExportPipeline() {
         } catch (innerError) {
             console.error("Canvas composite step failure: ", innerError);
         } finally {
-            // Revert original structural layout rules safely
             wrapper.style.cssText = origWrapperStyle;
             innerWrapper.style.cssText = origInnerStyle;
             mapDiv.style.cssText = origMapStyle;
