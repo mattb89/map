@@ -272,8 +272,7 @@ function renderDOMTypographyUpdates() {
     
     if (vignetteToggle && vignetteMask) {
         vignetteMask.style.display = "block";
-        vignetteMask.style.boxShadow = `inset 0 0 ${vignetteIntensity}px ${Math.floor(vignetteIntensity / 3.5)}px ${bgVal}`;
-    } else if (vignetteMask) {
+        vignetteMask.style.pointerEvents = "none";     } else if (vignetteMask) {
         vignetteMask.style.display = "none";
     }
 }
