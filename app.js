@@ -78,7 +78,7 @@ function bindUIControlsProgrammatically() {
         }
     });
 
-    const layerToggles = ['layer-highways', 'layer-roads', 'layer-buildings', 'layer-water', 'layer-parks', 'layer-trains', 'layer-labels'];
+    const layerToggles = ['layer-highways', 'layer-roads', 'layer-buildings', 'layer-water', 'layer-parks', 'layer-trains', 'layer-labels', 'layer-area-labels'];
     layerToggles.forEach(id => {
         const el = document.getElementById(id);
         if (el) el.addEventListener('change', toggleMapLayers);
@@ -367,6 +367,7 @@ function toggleMapLayers() {
     const showParks = document.getElementById('layer-parks').checked;
     const showTrains = document.getElementById('layer-trains').checked;
     const showLabels = document.getElementById('layer-labels').checked;
+    const showAreaLabels = document.getElementById('layer-area-labels').checked;
 
     const layers = map.getStyle().layers;
     const isHighwayRegex = /(motorway|trunk|primary|major|expressway|highway|link)/i;
@@ -377,6 +378,10 @@ function toggleMapLayers() {
     // so the checkbox toggles the same set of layers the color picker and pipeline target.
     const isParkRegex = /(park|leisure|forest|green|nature|cemetery|wood|grass)/i;
     const isTrainRegex = /(rail|train|transit|railway|subway)/i;
+    // label_other is OpenFreeMap Liberty's layer for suburb/neighborhood/quarter/hamlet
+    // names (place classes other than city/town/village/state/country) - the bold,
+    // letter-spaced "area" text the user noticed, distinct from street names and city labels.
+    const isAreaLabelRegex = /^label_other$/i;
 
     layers.forEach(layer => {
         const layerSrc = layer.source || '';
@@ -384,7 +389,11 @@ function toggleMapLayers() {
         const fullLayerPath = `${layer.id} ${layerSrc} ${sourceLayerStr}`;
 
         if (layer.type === 'symbol') {
-            map.setLayoutProperty(layer.id, 'visibility', showLabels ? 'visible' : 'none');
+            if (isAreaLabelRegex.test(layer.id)) {
+                map.setLayoutProperty(layer.id, 'visibility', showAreaLabels ? 'visible' : 'none');
+            } else {
+                map.setLayoutProperty(layer.id, 'visibility', showLabels ? 'visible' : 'none');
+            }
         }
         if (isBuildingRegex.test(fullLayerPath)) {
             map.setLayoutProperty(layer.id, 'visibility', showBuildings ? 'visible' : 'none');
@@ -468,38 +477,38 @@ document.addEventListener('click', (e) => {
 function processExportPipeline() {
     const map = window.mapInstance;
     if (!map) return;
-    
+
     const exportResMode = document.getElementById('export-resolution').value;
-    const aspectRatioMode = document.getElementById('poster-aspect-ratio').value; 
     const exportBtn = document.getElementById('btn-export');
-    
+    const originalBtnLabel = "Generate Art File";
+
     exportBtn.innerText = "Compiling Print File...";
     exportBtn.disabled = true;
-
-    let baseWidth = 420;
-    let baseHeight = 560; 
-    
-    if (aspectRatioMode === 'landscape-4-3') {
-        baseWidth = 560;
-        baseHeight = 420;
-    } else if (aspectRatioMode === 'widescreen-16-9') {
-        baseWidth = 746; 
-        baseHeight = 420;
-    } else if (aspectRatioMode === 'square-1-1') {
-        baseWidth = 500;
-        baseHeight = 500;
-    }
-    
-    const exportResMultiplier = (exportResMode === 'print-high') ? 4 : (exportResMode.includes('600') ? 6 : 1.5);
-    const multiplier = exportResMultiplier; 
-    
-    const targetWidth = baseWidth * multiplier;
-    const targetHeight = baseHeight * multiplier;
 
     const wrapper = document.getElementById('poster-wrapper');
     const innerWrapper = document.getElementById('map-wrapper-inner');
     const mapDiv = document.getElementById('map');
-    
+
+    // Read the poster's actual current on-screen size rather than a separate, hardcoded
+    // set of width/height constants. That guarantees every export tier is a scaled-up
+    // match of exactly what's in the preview (including on mobile's smaller breakpoint),
+    // instead of a second set of numbers that could quietly drift out of sync with it.
+    const wrapperRect = wrapper.getBoundingClientRect();
+    const baseWidth = Math.round(wrapperRect.width);
+    const baseHeight = Math.round(wrapperRect.height);
+
+    // "Quick Web Preview" uses the screen's own pixel ratio, so that tier is a pixel-faithful
+    // copy of the live preview rather than an arbitrarily different size. The two print tiers
+    // scale further, because true print sharpness needs the map to actually render more real
+    // pixels of detail - that part can't be faked by upscaling a small on-screen canvas.
+    const exportResMultiplier = (exportResMode === 'print-high') ? 4
+        : (exportResMode === 'print-ultra') ? 6
+        : Math.max(1, Math.min(3, window.devicePixelRatio || 1));
+    const multiplier = exportResMultiplier;
+
+    const targetWidth = Math.round(baseWidth * multiplier);
+    const targetHeight = Math.round(baseHeight * multiplier);
+
     const origWrapperStyle = wrapper.style.cssText;
     const origInnerStyle = innerWrapper.style.cssText;
     const origMapStyle = mapDiv.style.cssText;
@@ -513,6 +522,26 @@ function processExportPipeline() {
     map.resize();
     executeVectorStyleOverrides();
 
+    let restored = false;
+    const restoreLivePreview = () => {
+        if (restored) return;
+        restored = true;
+        wrapper.style.cssText = origWrapperStyle;
+        innerWrapper.style.cssText = origInnerStyle;
+        mapDiv.style.cssText = origMapStyle;
+        document.body.style.overflow = origBodyOverflow;
+        map.resize();
+        executeVectorStyleOverrides();
+        renderDOMTypographyUpdates();
+    };
+
+    const resetButton = (label, delay) => {
+        setTimeout(() => {
+            exportBtn.innerText = label;
+            exportBtn.disabled = false;
+        }, delay);
+    };
+
     map.once('idle', () => {
         try {
             const originalCanvas = map.getCanvas();
@@ -520,18 +549,18 @@ function processExportPipeline() {
             const textFloatToggle = document.getElementById('text-position-toggle').checked;
             const softEdgeToggle = document.getElementById('style-soft-edges').checked;
             const vignetteIntensity = parseInt(document.getElementById('vignette-intensity').value);
-            const labelBlockHeightSrc = textVisible ? 75 : 0; 
-            
+            const labelBlockHeightSrc = textVisible ? 75 : 0;
+
             const exportCanvas = document.createElement('canvas');
             exportCanvas.width = targetWidth;
-            exportCanvas.height = targetHeight; 
+            exportCanvas.height = targetHeight;
             const ctx = exportCanvas.getContext('2d');
 
             const bgStyle = document.getElementById('color-bg').value;
             const mainTextClass = document.getElementById('color-text-main').value;
             const subTextClass = document.getElementById('color-text-sub').value;
-            const titleValue = document.getElementById('text-main-input').value.toUpperCase(); 
-            const subtitleValue = document.getElementById('text-sub-input').value.toUpperCase(); 
+            const titleValue = document.getElementById('text-main-input').value.toUpperCase();
+            const subtitleValue = document.getElementById('text-sub-input').value.toUpperCase();
             const fontSelected = document.getElementById('font-select').value;
             const fontSizeMainSrc = parseInt(document.getElementById('size-font-main').value);
             const letterSpacingSrc = parseInt(document.getElementById('letter-spacing-main').value);
@@ -543,19 +572,23 @@ function processExportPipeline() {
             if (textVisible && !textFloatToggle) {
                 mapDestHeight = exportCanvas.height - (labelBlockHeightSrc * multiplier);
             }
-            
+
             ctx.drawImage(originalCanvas, 0, 0, exportCanvas.width, mapDestHeight);
 
             if (softEdgeToggle) {
+                // Same blur-to-spread ratio as the live CSS vignette (see
+                // renderDOMTypographyUpdates) so the exported file actually looks like
+                // what was on screen, just sharper - the old code used a different ratio
+                // here, which is why the two could look noticeably different before.
                 ctx.globalCompositeOperation = "source-over";
-                const shadowBorder = (vignetteIntensity / 1.2) * multiplier;
+                const shadowBorder = (vignetteIntensity / 3) * multiplier;
                 ctx.strokeStyle = bgStyle;
                 ctx.lineWidth = shadowBorder;
                 ctx.shadowBlur = vignetteIntensity * multiplier;
                 ctx.shadowColor = bgStyle;
                 ctx.strokeRect(shadowBorder/2, shadowBorder/2, exportCanvas.width - shadowBorder, mapDestHeight - shadowBorder);
             }
-            
+
             ctx.shadowBlur = 0;
             ctx.shadowColor = "transparent";
             ctx.shadowOffsetX = 0;
@@ -567,7 +600,7 @@ function processExportPipeline() {
 
                 if (textFloatToggle) {
                     const overlayCenterY = exportCanvas.height - (60 * multiplier);
-                    
+
                     ctx.fillStyle = bgStyle;
                     const boxHeight = 65 * multiplier;
                     const boxTop = overlayCenterY - (30 * multiplier);
@@ -577,7 +610,7 @@ function processExportPipeline() {
                     ctx.font = `bold ${Math.floor(fontSizeMainSrc * multiplier)}px ${fontSelected}`;
                     ctx.letterSpacing = `${letterSpacingSrc * multiplier}px`;
                     ctx.fillText(titleValue, exportCanvas.width / 2, overlayCenterY - (6 * multiplier));
-                    
+
                     ctx.fillStyle = subTextClass;
                     ctx.font = `${Math.floor(9 * multiplier)}px ${fontSelected}`;
                     ctx.letterSpacing = `${2 * multiplier}px`;
@@ -591,7 +624,7 @@ function processExportPipeline() {
                     ctx.font = `bold ${Math.floor(fontSizeMainSrc * multiplier)}px ${fontSelected}`;
                     ctx.letterSpacing = `${letterSpacingSrc * multiplier}px`;
                     ctx.fillText(titleValue, exportCanvas.width / 2, bannerCenterY - (8 * multiplier));
-                    
+
                     ctx.fillStyle = subTextClass;
                     ctx.font = `${Math.floor(9 * multiplier)}px ${fontSelected}`;
                     ctx.letterSpacing = `${2 * multiplier}px`;
@@ -599,58 +632,46 @@ function processExportPipeline() {
                 }
             }
 
-            const dataURL = exportCanvas.toDataURL('image/png');
-            
-            let modal = document.getElementById('mobile-export-modal');
-            if (!modal) {
-                modal = document.createElement('div');
-                modal.id = 'mobile-export-modal';
-                modal.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(18,18,18,0.96);z-index:99999;display:none;flex-direction:column;align-items:center;justify-content:center;padding:20px;box-sizing:border-box;color:#fff;font-family:-apple-system,BlinkMacSystemFont,sans-serif;';
-                
-                const closeBtn = document.createElement('button');
-                closeBtn.innerText = '✕ Close Preview';
-                closeBtn.style.cssText = 'margin-bottom:15px;background:#222;color:#fff;border:1px solid #444;padding:12px 24px;border-radius:8px;font-weight:bold;font-size:13px;text-transform:uppercase;letter-spacing:1px;';
-                closeBtn.onclick = () => { modal.style.display = 'none'; };
-                
-                const alertInfo = document.createElement('p');
-                alertInfo.innerText = '📸 Print File Compiled!\nLong-press the image below to save it directly to your Photos.';
-                alertInfo.style.cssText = 'text-align:center;font-size:13px;color:#00ffcc;margin:0 0 15px 0;line-height:1.5;font-weight:bold;';
-                
-                const imgFrame = document.createElement('div');
-                imgFrame.id = 'mobile-export-frame';
-                imgFrame.style.cssText = 'max-width:100%;max-height:70vh;box-shadow:0 20px 50px rgba(0,0,0,0.9);border-radius:4px;overflow:hidden;';
-                
-                modal.appendChild(closeBtn);
-                modal.appendChild(alertInfo);
-                modal.appendChild(imgFrame);
-                document.body.appendChild(modal);
-            }
+            // The live map can come back to its normal preview size right away - everything
+            // we need is already safely copied into exportCanvas above.
+            restoreLivePreview();
 
-            const imgFrame = document.getElementById('mobile-export-frame');
-            if (imgFrame) {
-                imgFrame.innerHTML = '';
-                const finalPosterImg = document.createElement('img');
-                finalPosterImg.src = dataURL;
-                finalPosterImg.style.cssText = 'width:100%;height:auto;max-height:70vh;display:block;object-fit:contain;';
-                imgFrame.appendChild(finalPosterImg);
-            }
-            
-            modal.style.display = 'flex';
+            // Real, one-click file download - no second "long-press to save" step, and no
+            // intermediate modal. toBlob() also avoids inflating a multi-hundred-megapixel
+            // 600 DPI image into a giant base64 string in memory the way toDataURL() would,
+            // so this tier is noticeably faster/lighter too.
+            exportCanvas.toBlob((blob) => {
+                if (!blob) {
+                    console.error("Canvas export produced an empty blob.");
+                    exportBtn.innerText = "Failed - Try Again";
+                    resetButton(originalBtnLabel, 2400);
+                    return;
+                }
+
+                const citySlug = (document.getElementById('text-main-input').value || 'map-poster')
+                    .toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') || 'map-poster';
+                const qualitySlug = exportResMode === 'print-ultra' ? 'ultra-600dpi'
+                    : exportResMode === 'print-high' ? 'print-300dpi' : 'web';
+                const filename = `${citySlug}-poster-${qualitySlug}.png`;
+
+                const blobUrl = URL.createObjectURL(blob);
+                const downloadLink = document.createElement('a');
+                downloadLink.href = blobUrl;
+                downloadLink.download = filename;
+                document.body.appendChild(downloadLink);
+                downloadLink.click();
+                document.body.removeChild(downloadLink);
+                URL.revokeObjectURL(blobUrl);
+
+                exportBtn.innerText = "Downloaded ✓";
+                resetButton(originalBtnLabel, 2000);
+            }, 'image/png');
 
         } catch (innerError) {
             console.error("Canvas composite step failure: ", innerError);
-        } finally {
-            wrapper.style.cssText = origWrapperStyle;
-            innerWrapper.style.cssText = origInnerStyle;
-            mapDiv.style.cssText = origMapStyle;
-            document.body.style.overflow = origBodyOverflow;
-            
-            map.resize();
-            executeVectorStyleOverrides();
-            renderDOMTypographyUpdates();
-
-            exportBtn.innerText = "Generate Art File";
-            exportBtn.disabled = false;
+            restoreLivePreview();
+            exportBtn.innerText = "Failed - Try Again";
+            resetButton(originalBtnLabel, 2400);
         }
     });
 }
