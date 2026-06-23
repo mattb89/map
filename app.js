@@ -46,12 +46,13 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     });
 
-    window.mapInstance.on('styledata', () => {
-        if (!isUpdatingStyles) {
-            executeVectorStyleOverrides();
-            renderDOMTypographyUpdates();
-        }
-    });
+    // NOTE: a 'styledata' listener used to live here that re-ran the override pipeline
+    // every time the style changed internally. But setPaintProperty() itself triggers
+    // 'styledata' on the next render tick - by which point isUpdatingStyles had already
+    // been reset to false, so the guard didn't catch it. That created a feedback loop
+    // that re-applied (and briefly re-flickered) every override right after a theme click.
+    // Every UI action already calls executeVectorStyleOverrides()/renderDOMTypographyUpdates()
+    // directly, so this listener was redundant - removing it removes the flicker/loop.
 
     window.mapInstance.on('moveend', () => {
         if (!isUpdatingStyles) executeVectorStyleOverrides();
@@ -108,12 +109,22 @@ function executeVectorStyleOverrides() {
     const roadSliderWidth = parseFloat(document.getElementById('width-roads').value);
     const lineOpacityVal = parseFloat(document.getElementById('opacity-lines').value);
     const buildingOpacityVal = parseFloat(document.getElementById('opacity-buildings').value);
+    const showParksVal = document.getElementById('layer-parks').checked;
 
     const isHighwayRegex = /(motorway|trunk|primary|major|expressway|highway|link)/i;
     const isMinorRoadRegex = /(minor|residential|service|secondary|tertiary|street|road|path|track)/i;
     const isBuildingRegex = /(building|3d|structure|extrusion)/i;
     const isWaterRegex = /(water|stream|river|lake|ocean|sea|marina)/i;
-    const isParkRegex = /(park|leisure|forest|green|nature|landcover|cemetery|wood|grass)/i;
+    // Removed the bare "landcover" keyword: it was matching landcover_ice / landcover_sand /
+    // landcover_wetland too, forcing them green (and wetland uses a fill-pattern texture, not
+    // a flat color, so the park color picker could never actually touch it anyway).
+    const isParkRegex = /(park|leisure|forest|green|nature|cemetery|wood|grass)/i;
+    // Small land-use accent parcels (sports pitches, running tracks, school/hospital grounds)
+    // that OpenStreetMap commonly maps as separate polygons *inside or beside* parks. The old
+    // "Background Paint Guard" below painted these as a solid, fully opaque background color,
+    // which - since they're drawn on top of the park/forest fill - punched visible holes
+    // straight through the green. Hiding them outright fixes that, and keeps the poster clean.
+    const isClutterRegex = /(pitch|track|hospital|school|playground|parking)/i;
     const isTrainRegex = /(rail|train|transit|railway|subway)/i;
 
     const layers = map.getStyle().layers;
@@ -127,17 +138,28 @@ function executeVectorStyleOverrides() {
             map.setPaintProperty(layer.id, 'background-color', bgStyleVal);
         }
         
-        // Background Paint Guard - Prevents overwriting park landmasses
+        // Background Paint Guard - blends stray basemap fills into the background, but
+        // never over park/forest layers, and never by painting a solid opaque block over
+        // small accent parcels (those get hidden instead, see isClutterRegex above)
         if (layer.type === 'fill' && (layer.id.includes('land') || layer.id.includes('area') || layer.id.includes('background'))) {
-            if (!isParkRegex.test(fullLayerPath)) {
+            if (isClutterRegex.test(fullLayerPath)) {
+                map.setLayoutProperty(layer.id, 'visibility', 'none');
+            } else if (!isParkRegex.test(fullLayerPath)) {
                 map.setPaintProperty(layer.id, 'fill-color', bgStyleVal);
             }
         }
 
         if (isBuildingRegex.test(fullLayerPath)) {
-            if (layer.type === 'fill' || layer.type === 'fill-extrusion') {
+            if (layer.type === 'fill') {
                 map.setPaintProperty(layer.id, 'fill-color', buildingColorVal);
                 map.setPaintProperty(layer.id, 'fill-opacity', buildingOpacityVal);
+            } else if (layer.type === 'fill-extrusion') {
+                // fill-extrusion layers (3D buildings, active at zoom >= 14) don't have a
+                // 'fill-color'/'fill-opacity' paint property - that silently failed validation
+                // and never applied, which is why building color never seemed to "take" at
+                // the app's default zoom level.
+                map.setPaintProperty(layer.id, 'fill-extrusion-color', buildingColorVal);
+                map.setPaintProperty(layer.id, 'fill-extrusion-opacity', buildingOpacityVal);
             }
         }
         if (isWaterRegex.test(fullLayerPath)) {
@@ -145,12 +167,18 @@ function executeVectorStyleOverrides() {
             if (layer.type === 'line') map.setPaintProperty(layer.id, 'line-color', waterColorVal);
         }
         
-        // Hardened Park Pipeline - Forces visibility on dark maps
+        // Hardened Park Pipeline - Forces visibility on dark maps, but respects the
+        // "Render Parks & Greenery" checkbox instead of always forcing it back on
+        // (it used to fight with toggleMapLayers(), so unchecking that box did nothing)
         if (isParkRegex.test(fullLayerPath)) {
             if (layer.type === 'fill') {
                 map.setPaintProperty(layer.id, 'fill-color', parkColorVal);
                 map.setPaintProperty(layer.id, 'fill-opacity', 1.0);
-                map.setLayoutProperty(layer.id, 'visibility', 'visible');
+                map.setLayoutProperty(layer.id, 'visibility', showParksVal ? 'visible' : 'none');
+            } else if (layer.type === 'line') {
+                // covers park outlines, so the border matches the chosen park color too
+                map.setPaintProperty(layer.id, 'line-color', parkColorVal);
+                map.setLayoutProperty(layer.id, 'visibility', showParksVal ? 'visible' : 'none');
             }
         }
         
@@ -272,10 +300,17 @@ function renderDOMTypographyUpdates() {
     
     if (vignetteToggle && vignetteMask) {
         vignetteMask.style.display = "block";
-        vignetteMask.style.pointerEvents = "none";     } else if (vignetteMask) {
+        vignetteMask.style.pointerEvents = "none";
+        // Previously the vignette color was hardcoded black in styles.css, so on light
+        // themes (District Pop, Lavender, Clay, etc.) you'd always get a black smudge
+        // around the edges no matter what theme you picked, and the intensity slider
+        // had no visible effect here at all (it only affected the final exported file).
+        vignetteMask.style.boxShadow = `inset 0 0 ${vignetteIntensity}px ${Math.round(vignetteIntensity / 3)}px ${bgVal}`;
+    } else if (vignetteMask) {
         vignetteMask.style.display = "none";
     }
 }
+
 
 function generateVisualSwatches() {
     const grid = document.getElementById('palette-container-wrapper');
@@ -338,7 +373,9 @@ function toggleMapLayers() {
     const isMinorRoadRegex = /(minor|residential|service|secondary|tertiary|street|road|path|track)/i;
     const isBuildingRegex = /(building|3d|structure|extrusion)/i;
     const isWaterRegex = /(water|stream|river|lake|ocean|sea|marina)/i;
-    const isParkRegex = /(park|leisure|forest|green|nature|landcover|cemetery|wood|grass)/i;
+    // Kept in sync with executeVectorStyleOverrides()'s isParkRegex (no bare "landcover")
+    // so the checkbox toggles the same set of layers the color picker and pipeline target.
+    const isParkRegex = /(park|leisure|forest|green|nature|cemetery|wood|grass)/i;
     const isTrainRegex = /(rail|train|transit|railway|subway)/i;
 
     layers.forEach(layer => {
