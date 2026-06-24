@@ -78,7 +78,7 @@ function bindUIControlsProgrammatically() {
         }
     });
 
-    const layerToggles = ['layer-highways', 'layer-roads', 'layer-buildings', 'layer-water', 'layer-parks', 'layer-trains', 'layer-labels', 'layer-area-labels'];
+    const layerToggles = ['layer-highways', 'layer-roads', 'layer-buildings', 'layer-water', 'layer-water-labels', 'layer-parks', 'layer-trains', 'layer-labels', 'layer-area-labels'];
     layerToggles.forEach(id => {
         const el = document.getElementById(id);
         if (el) el.addEventListener('change', toggleMapLayers);
@@ -368,6 +368,7 @@ function toggleMapLayers() {
     const showTrains = document.getElementById('layer-trains').checked;
     const showLabels = document.getElementById('layer-labels').checked;
     const showAreaLabels = document.getElementById('layer-area-labels').checked;
+    const showWaterLabels = document.getElementById('layer-water-labels').checked;
 
     const layers = map.getStyle().layers;
     const isHighwayRegex = /(motorway|trunk|primary|major|expressway|highway|link)/i;
@@ -389,11 +390,20 @@ function toggleMapLayers() {
         const fullLayerPath = `${layer.id} ${layerSrc} ${sourceLayerStr}`;
 
         if (layer.type === 'symbol') {
-            if (isAreaLabelRegex.test(layer.id)) {
+            // Symbol (text/icon) layers are handled exclusively here, in priority order,
+            // then we move on - water name labels (lakes/rivers) also contain the word
+            // "water" in their ids, so they used to ALSO get caught by the water-polygon
+            // check further down, which ran after this block and silently overrode
+            // whatever this block decided. Returning here means only one toggle ever
+            // controls a given label layer.
+            if (isWaterRegex.test(fullLayerPath)) {
+                map.setLayoutProperty(layer.id, 'visibility', showWaterLabels ? 'visible' : 'none');
+            } else if (isAreaLabelRegex.test(layer.id)) {
                 map.setLayoutProperty(layer.id, 'visibility', showAreaLabels ? 'visible' : 'none');
             } else {
                 map.setLayoutProperty(layer.id, 'visibility', showLabels ? 'visible' : 'none');
             }
+            return;
         }
         if (isBuildingRegex.test(fullLayerPath)) {
             map.setLayoutProperty(layer.id, 'visibility', showBuildings ? 'visible' : 'none');
@@ -509,6 +519,21 @@ function processExportPipeline() {
     const targetWidth = Math.round(baseWidth * multiplier);
     const targetHeight = Math.round(baseHeight * multiplier);
 
+    // THE FIELD-OF-VIEW FIX: on a tile-based map, geographic area shown = canvas pixels
+    // divided by 2^zoom. The live preview deliberately renders the map at 2x the visible
+    // poster size (see #map-wrapper-inner's 200%/scale(0.5) in styles.css - the "Extended
+    // Field of View" trick) then shrinks it back down with CSS, which is what gives the
+    // preview its richer, slightly-zoomed-out crop. The export was rendering at a literal
+    // 1x-to-multiplier canvas with NO such trick and at the SAME zoom level, so a bigger
+    // canvas (for print sharpness) was also quietly widening the field of view - e.g. the
+    // 6x "ultra" tier showed 3x more width/height (9x more area) than the preview. More
+    // export pixels should mean more *detail*, not a different camera. To cancel that out
+    // and frame the identical ground area as the preview, just sharper, we zoom IN by
+    // log2(multiplier / 2) before rendering, then zoom back out to restore the preview after.
+    const liveZoom = map.getZoom();
+    const liveCenter = map.getCenter();
+    const exportZoom = liveZoom + Math.log2(multiplier / 2);
+
     const origWrapperStyle = wrapper.style.cssText;
     const origInnerStyle = innerWrapper.style.cssText;
     const origMapStyle = mapDiv.style.cssText;
@@ -520,6 +545,7 @@ function processExportPipeline() {
     mapDiv.style.cssText = `width: 100% !important; height: 100% !important; max-width: none !important; max-height: none !important;`;
 
     map.resize();
+    map.jumpTo({ center: liveCenter, zoom: exportZoom });
     executeVectorStyleOverrides();
 
     let restored = false;
@@ -531,6 +557,7 @@ function processExportPipeline() {
         mapDiv.style.cssText = origMapStyle;
         document.body.style.overflow = origBodyOverflow;
         map.resize();
+        map.jumpTo({ center: liveCenter, zoom: liveZoom });
         executeVectorStyleOverrides();
         renderDOMTypographyUpdates();
     };
