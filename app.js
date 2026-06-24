@@ -63,7 +63,7 @@ function bindUIControlsProgrammatically() {
     const triggerInputs = [
         'poster-aspect-ratio',
         'text-visible-toggle', 'text-main-input', 'text-sub-input', 'font-select',
-        'size-font-main', 'letter-spacing-main', 'text-position-toggle', 'width-highways',
+        'size-font-main', 'letter-spacing-main', 'text-layout-mode', 'width-highways',
         'width-roads', 'opacity-lines', 'opacity-buildings',
         'style-soft-edges', 'vignette-intensity', 'color-bg', 'color-highways',
         'color-roads', 'color-buildings', 'color-water', 'color-parks', 'color-trains',
@@ -213,6 +213,16 @@ function triggerUIDebounce() {
     }, 30);
 }
 
+function hexToRgba(hex, alpha) {
+    const sanitized = (hex || '#000000').replace('#', '');
+    const full = sanitized.length === 3 ? sanitized.split('').map(c => c + c).join('') : sanitized;
+    const intVal = parseInt(full, 16) || 0;
+    const r = (intVal >> 16) & 255;
+    const g = (intVal >> 8) & 255;
+    const b = intVal & 255;
+    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
 function renderDOMTypographyUpdates() {
     const bgVal = document.getElementById('color-bg').value;
     const mainTextVal = document.getElementById('color-text-main').value;
@@ -223,7 +233,7 @@ function renderDOMTypographyUpdates() {
     const letterSpacingMain = document.getElementById('letter-spacing-main').value;
     
     const textVisible = document.getElementById('text-visible-toggle').checked;
-    const textFloatToggle = document.getElementById('text-position-toggle').checked;
+    const textLayoutMode = document.getElementById('text-layout-mode').value; // 'banner' | 'overlay-card' | 'overlay-banner' | 'overlay-compact'
     const labelBlock = document.getElementById('poster-label');
     const mapBox = document.getElementById('map-bounding-box');
     const typographyControls = document.getElementById('typography-controls-wrapper');
@@ -233,16 +243,29 @@ function renderDOMTypographyUpdates() {
         if (typographyControls) typographyControls.style.display = "block";
         if (textColorRow) textColorRow.style.display = "flex";
         if (labelBlock) labelBlock.classList.remove('hidden-element');
-        
-        if (textFloatToggle) {
-            if (labelBlock) labelBlock.classList.add('floating');
-            if (mapBox) mapBox.classList.add('full-bleed');
-        } else {
-            if (labelBlock) {
-                labelBlock.classList.remove('floating');
+
+        if (labelBlock) {
+            labelBlock.classList.remove('floating', 'floating-banner', 'floating-compact');
+            if (textLayoutMode === 'overlay-card') {
+                labelBlock.classList.add('floating');
+                labelBlock.style.backgroundColor = hexToRgba(bgVal, 0.85);
+            } else if (textLayoutMode === 'overlay-banner') {
+                labelBlock.classList.add('floating-banner');
+                labelBlock.style.backgroundColor = bgVal;
+            } else if (textLayoutMode === 'overlay-compact') {
+                labelBlock.classList.add('floating-compact');
+                labelBlock.style.backgroundColor = hexToRgba(bgVal, 0.85);
+            } else {
+                // 'banner' - the original bottom bar, with its own reserved space
                 labelBlock.style.backgroundColor = bgVal;
             }
-            if (mapBox) mapBox.classList.remove('full-bleed');
+        }
+
+        // Every overlay mode lets the map fill the full poster height behind the label;
+        // only the plain bottom banner reserves its own dedicated strip beneath the map.
+        if (mapBox) {
+            if (textLayoutMode === 'banner') mapBox.classList.remove('full-bleed');
+            else mapBox.classList.add('full-bleed');
         }
     } else {
         if (typographyControls) typographyControls.style.display = "none";
@@ -261,15 +284,20 @@ function renderDOMTypographyUpdates() {
         posterWrapper.style.height = "auto";
         if (posterFrame) posterFrame.style.height = "auto";
         
+        // Each mode caps its width the same way Portrait always did (min(100%, Npx)).
+        // Before, only Portrait was capped - the other three used a bare "100%", which
+        // resolves against the whole map panel (often 800-1000px+), and since
+        // #poster-wrapper has flex-shrink:0 it doesn't get squeezed back down - it just
+        // ballooned to fill the panel, pushing the label and most of the poster off screen.
         if (aspectRatioMode === 'landscape-4-3') {
             posterWrapper.style.aspectRatio = "4 / 3";
-            posterWrapper.style.width = "100%";
+            posterWrapper.style.width = "min(100%, 560px)";
         } else if (aspectRatioMode === 'widescreen-16-9') {
             posterWrapper.style.aspectRatio = "16 / 9";
-            posterWrapper.style.width = "100%";
+            posterWrapper.style.width = "min(100%, 746px)";
         } else if (aspectRatioMode === 'square-1-1') {
             posterWrapper.style.aspectRatio = "1 / 1";
-            posterWrapper.style.width = "100%";
+            posterWrapper.style.width = "min(100%, 500px)";
         } else {
             posterWrapper.style.aspectRatio = "3 / 4";
             posterWrapper.style.width = "min(100%, 420px)"; 
@@ -573,7 +601,7 @@ function processExportPipeline() {
         try {
             const originalCanvas = map.getCanvas();
             const textVisible = document.getElementById('text-visible-toggle').checked;
-            const textFloatToggle = document.getElementById('text-position-toggle').checked;
+            const textLayoutMode = document.getElementById('text-layout-mode').value; // 'banner' | 'overlay-card' | 'overlay-banner' | 'overlay-compact'
             const softEdgeToggle = document.getElementById('style-soft-edges').checked;
             const vignetteIntensity = parseInt(document.getElementById('vignette-intensity').value);
             const labelBlockHeightSrc = textVisible ? 75 : 0;
@@ -596,7 +624,7 @@ function processExportPipeline() {
             ctx.fillRect(0, 0, exportCanvas.width, exportCanvas.height);
 
             let mapDestHeight = exportCanvas.height;
-            if (textVisible && !textFloatToggle) {
+            if (textVisible && textLayoutMode === 'banner') {
                 mapDestHeight = exportCanvas.height - (labelBlockHeightSrc * multiplier);
             }
 
@@ -625,37 +653,79 @@ function processExportPipeline() {
                 ctx.textAlign = 'center';
                 ctx.textBaseline = 'middle';
 
-                if (textFloatToggle) {
-                    const overlayCenterY = exportCanvas.height - (60 * multiplier);
+                const titleFont = `bold ${Math.floor(fontSizeMainSrc * multiplier)}px ${fontSelected}`;
+                const subFont = `${Math.floor(9 * multiplier)}px ${fontSelected}`;
 
-                    ctx.fillStyle = bgStyle;
-                    const boxHeight = 65 * multiplier;
-                    const boxTop = overlayCenterY - (30 * multiplier);
-                    ctx.fillRect(0, boxTop, exportCanvas.width, boxHeight);
-
-                    ctx.fillStyle = mainTextClass;
-                    ctx.font = `bold ${Math.floor(fontSizeMainSrc * multiplier)}px ${fontSelected}`;
-                    ctx.letterSpacing = `${letterSpacingSrc * multiplier}px`;
-                    ctx.fillText(titleValue, exportCanvas.width / 2, overlayCenterY - (6 * multiplier));
-
-                    ctx.fillStyle = subTextClass;
-                    ctx.font = `${Math.floor(9 * multiplier)}px ${fontSelected}`;
-                    ctx.letterSpacing = `${2 * multiplier}px`;
-                    ctx.fillText(subtitleValue, exportCanvas.width / 2, overlayCenterY + (14 * multiplier));
-                } else {
+                if (textLayoutMode === 'banner') {
+                    // Plain bottom bar in its own reserved strip beneath the map.
                     const bannerCenterY = mapDestHeight + ((exportCanvas.height - mapDestHeight) / 2);
                     ctx.fillStyle = bgStyle;
                     ctx.fillRect(0, mapDestHeight, exportCanvas.width, exportCanvas.height - mapDestHeight);
 
                     ctx.fillStyle = mainTextClass;
-                    ctx.font = `bold ${Math.floor(fontSizeMainSrc * multiplier)}px ${fontSelected}`;
+                    ctx.font = titleFont;
                     ctx.letterSpacing = `${letterSpacingSrc * multiplier}px`;
                     ctx.fillText(titleValue, exportCanvas.width / 2, bannerCenterY - (8 * multiplier));
 
                     ctx.fillStyle = subTextClass;
-                    ctx.font = `${Math.floor(9 * multiplier)}px ${fontSelected}`;
+                    ctx.font = subFont;
                     ctx.letterSpacing = `${2 * multiplier}px`;
                     ctx.fillText(subtitleValue, exportCanvas.width / 2, bannerCenterY + (10 * multiplier));
+                } else {
+                    // All three "overlay" modes share the same vertical placement (shifted
+                    // up off the bottom edge, sitting on top of the full-bleed map) and
+                    // differ only in the shape/width of the box behind the text - matching
+                    // the .floating / .floating-banner / .floating-compact CSS classes.
+                    const overlayCenterY = exportCanvas.height - (60 * multiplier);
+                    const titleY = overlayCenterY - (6 * multiplier);
+                    const subtitleY = overlayCenterY + (14 * multiplier);
+                    const boxTop = overlayCenterY - (32 * multiplier);
+                    const boxHeight = 65 * multiplier;
+                    const paddingX = 24 * multiplier;
+                    const cornerRadius = 8 * multiplier;
+
+                    ctx.font = titleFont;
+                    ctx.letterSpacing = `${letterSpacingSrc * multiplier}px`;
+                    const titleWidth = ctx.measureText(titleValue).width;
+                    ctx.font = subFont;
+                    ctx.letterSpacing = `${2 * multiplier}px`;
+                    const subtitleWidth = ctx.measureText(subtitleValue).width;
+                    const contentWidth = Math.max(titleWidth, subtitleWidth);
+
+                    let boxWidth, boxLeft, useRoundedCorners;
+                    if (textLayoutMode === 'overlay-banner') {
+                        boxWidth = exportCanvas.width;
+                        boxLeft = 0;
+                        useRoundedCorners = false;
+                    } else if (textLayoutMode === 'overlay-compact') {
+                        boxWidth = Math.min(contentWidth + paddingX * 2, exportCanvas.width * 0.85);
+                        boxLeft = (exportCanvas.width - boxWidth) / 2;
+                        useRoundedCorners = true;
+                    } else {
+                        // overlay-card: matches CSS min-width:70%
+                        boxWidth = Math.max(exportCanvas.width * 0.7, Math.min(contentWidth + paddingX * 2, exportCanvas.width * 0.92));
+                        boxLeft = (exportCanvas.width - boxWidth) / 2;
+                        useRoundedCorners = true;
+                    }
+
+                    ctx.fillStyle = textLayoutMode === 'overlay-banner' ? bgStyle : hexToRgba(bgStyle, 0.85);
+                    ctx.beginPath();
+                    if (useRoundedCorners && typeof ctx.roundRect === 'function') {
+                        ctx.roundRect(boxLeft, boxTop, boxWidth, boxHeight, cornerRadius);
+                    } else {
+                        ctx.rect(boxLeft, boxTop, boxWidth, boxHeight);
+                    }
+                    ctx.fill();
+
+                    ctx.fillStyle = mainTextClass;
+                    ctx.font = titleFont;
+                    ctx.letterSpacing = `${letterSpacingSrc * multiplier}px`;
+                    ctx.fillText(titleValue, exportCanvas.width / 2, titleY);
+
+                    ctx.fillStyle = subTextClass;
+                    ctx.font = subFont;
+                    ctx.letterSpacing = `${2 * multiplier}px`;
+                    ctx.fillText(subtitleValue, exportCanvas.width / 2, subtitleY);
                 }
             }
 

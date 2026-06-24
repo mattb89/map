@@ -139,6 +139,40 @@ body {
     padding: 12px; 
 }
 
+/* Overlay - Full Banner: same "shifted up off the bottom edge" placement as the
+   floating card, but spans edge-to-edge like a classic banner instead of a narrow
+   centered pill. Background color is set inline by JS to match the active theme. */
+#poster-label.floating-banner { 
+    bottom: 20px; 
+    left: 0; 
+    transform: none; 
+    border-radius: 0; 
+    border: none; 
+    backdrop-filter: none; 
+    height: auto; 
+    width: 100%; 
+    min-width: 100%; 
+    padding: 12px 20px; 
+}
+
+/* Overlay - Compact Tag: same floating-card styling, but sized to fit the text
+   instead of stretching to a 70% minimum width. */
+#poster-label.floating-compact { 
+    bottom: 25px; 
+    left: 50%; 
+    transform: translateX(-50%); 
+    background: rgba(0,0,0,0.85); 
+    border-radius: 8px; 
+    border: 1px solid rgba(255,255,255,0.1); 
+    backdrop-filter: blur(5px); 
+    height: auto; 
+    width: auto; 
+    min-width: 0; 
+    max-width: 85%; 
+    padding: 12px 22px; 
+    white-space: nowrap; 
+}
+
 #poster-label.hidden-element { 
     display: none !important; 
 }
