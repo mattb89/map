@@ -6,6 +6,41 @@
 window.mapInstance = null;
 let uiDebounceTimer = null;
 let isUpdatingStyles = false; 
+let coordsManuallyEdited = false; // true once the person types their own GPS value directly
+
+function formatCoords(lng, lat) {
+    const latDir = lat >= 0 ? 'N' : 'S';
+    const lonDir = lng >= 0 ? 'E' : 'W';
+    return `${Math.abs(lat).toFixed(4)}° ${latDir}, ${Math.abs(lng).toFixed(4)}° ${lonDir}`;
+}
+
+// Combines the region field and the GPS coordinates field into the single subtitle
+// line that actually gets rendered - this is the one place that does that, so the
+// live preview and the export are always guaranteed to compose it the same way.
+function composeSubtitleText() {
+    const region = (document.getElementById('text-sub-input').value || '').trim();
+    const coords = (document.getElementById('text-coords-input').value || '').trim();
+    if (region && coords) return `${region} | ${coords}`;
+    return region || coords;
+}
+
+// Keeps the GPS Coordinates field tracking wherever the map is actually centered,
+// unless the person has manually typed their own value - a deliberate new search
+// (see searchLocation()) resets that and takes over again.
+function syncCoordsFromMap() {
+    if (coordsManuallyEdited || !window.mapInstance) return;
+    const center = window.mapInstance.getCenter();
+    const coordsInput = document.getElementById('text-coords-input');
+    if (coordsInput) coordsInput.value = formatCoords(center.lng, center.lat);
+}
+
+// Updates only the visible subtitle text, with no other side effects - safe to call
+// on every map move, including mid-export (unlike renderDOMTypographyUpdates(), which
+// also resizes the poster wrapper).
+function refreshSubtitleLabelText() {
+    const subLabel = document.getElementById('label-sub');
+    if (subLabel) subLabel.innerText = composeSubtitleText().toUpperCase();
+}
 
 const themePresets = {
     'minimal-gray': { title: 'Charcoal', bg: '#ffffff', highway: '#222222', roads: '#777777', buildings: '#e0e0e0', water: '#f0f0f0', parks: '#ebf2ea', trains: '#bcbcbc', textMain: '#111111', textSub: '#555555' },
@@ -42,6 +77,7 @@ document.addEventListener("DOMContentLoaded", () => {
         bindUIControlsProgrammatically(); 
         
         requestAnimationFrame(() => {
+            syncCoordsFromMap();
             selectSwatchTheme('cyber-neon');
         });
     });
@@ -55,6 +91,14 @@ document.addEventListener("DOMContentLoaded", () => {
     // directly, so this listener was redundant - removing it removes the flicker/loop.
 
     window.mapInstance.on('moveend', () => {
+        // Keeps the GPS field tracking the map on every pan/zoom/search flyTo, unless
+        // the person has manually typed their own coordinates (see bindUIControlsProgrammatically).
+        // Deliberately lightweight: just the input value + visible label text, not the
+        // full renderDOMTypographyUpdates() - that function also resizes the poster
+        // wrapper, and the export pipeline's zoom-compensation jumpTo() also fires
+        // 'moveend' mid-export, which would otherwise stomp on its temporary dimensions.
+        syncCoordsFromMap();
+        refreshSubtitleLabelText();
         if (!isUpdatingStyles) executeVectorStyleOverrides();
     });
 });
@@ -62,7 +106,7 @@ document.addEventListener("DOMContentLoaded", () => {
 function bindUIControlsProgrammatically() {
     const triggerInputs = [
         'poster-aspect-ratio',
-        'text-visible-toggle', 'text-main-input', 'text-sub-input', 'font-select',
+        'text-visible-toggle', 'text-main-input', 'text-sub-input', 'text-coords-input', 'font-select',
         'size-font-main', 'letter-spacing-main', 'text-layout-mode', 'width-highways',
         'width-roads', 'opacity-lines', 'opacity-buildings',
         'style-soft-edges', 'vignette-intensity', 'color-bg', 'color-highways',
@@ -77,6 +121,14 @@ function bindUIControlsProgrammatically() {
             el.addEventListener('change', triggerUIDebounce);
         }
     });
+
+    // Setting .value from code (the map-driven auto-sync) never fires 'input' - only
+    // actual keystrokes from the person do. So this only flips on when they actually
+    // type a manual tweak, which is exactly when auto-sync should back off.
+    const coordsInput = document.getElementById('text-coords-input');
+    if (coordsInput) {
+        coordsInput.addEventListener('input', () => { coordsManuallyEdited = true; });
+    }
 
     const layerToggles = ['layer-highways', 'layer-roads', 'layer-buildings', 'layer-water', 'layer-water-labels', 'layer-parks', 'layer-trains', 'layer-labels', 'layer-area-labels'];
     layerToggles.forEach(id => {
@@ -233,7 +285,7 @@ function renderDOMTypographyUpdates() {
     const letterSpacingMain = document.getElementById('letter-spacing-main').value;
     
     const textVisible = document.getElementById('text-visible-toggle').checked;
-    const textLayoutMode = document.getElementById('text-layout-mode').value; // 'banner' | 'overlay-card' | 'overlay-banner' | 'overlay-compact'
+    const textLayoutMode = document.getElementById('text-layout-mode').value; // 'banner' | 'overlay-text' | 'overlay-banner' | 'overlay-compact'
     const labelBlock = document.getElementById('poster-label');
     const mapBox = document.getElementById('map-bounding-box');
     const typographyControls = document.getElementById('typography-controls-wrapper');
@@ -245,10 +297,10 @@ function renderDOMTypographyUpdates() {
         if (labelBlock) labelBlock.classList.remove('hidden-element');
 
         if (labelBlock) {
-            labelBlock.classList.remove('floating', 'floating-banner', 'floating-compact');
-            if (textLayoutMode === 'overlay-card') {
-                labelBlock.classList.add('floating');
-                labelBlock.style.backgroundColor = hexToRgba(bgVal, 0.85);
+            labelBlock.classList.remove('text-only', 'floating-banner', 'floating-compact');
+            if (textLayoutMode === 'overlay-text') {
+                labelBlock.classList.add('text-only');
+                labelBlock.style.backgroundColor = 'transparent';
             } else if (textLayoutMode === 'overlay-banner') {
                 labelBlock.classList.add('floating-banner');
                 labelBlock.style.backgroundColor = bgVal;
@@ -317,7 +369,7 @@ function renderDOMTypographyUpdates() {
 
     const subLabel = document.getElementById('label-sub');
     if (subLabel) {
-        subLabel.innerText = document.getElementById('text-sub-input').value.toUpperCase(); 
+        subLabel.innerText = composeSubtitleText().toUpperCase(); 
         subLabel.style.color = subTextVal;
         subLabel.style.fontFamily = fontVal;
     }
@@ -486,12 +538,15 @@ async function searchLocation() {
                 
                 const nameArray = item.display_name.split(',');
                 document.getElementById('text-main-input').value = nameArray[0].trim();
-                
+                document.getElementById('text-sub-input').value = (nameArray[2] || nameArray[1] || '').trim().toUpperCase();
+
                 const lat = parseFloat(item.lat);
                 const lon = parseFloat(item.lon);
-                const latDir = lat >= 0 ? 'N' : 'S';
-                const lonDir = lon >= 0 ? 'E' : 'W';
-                document.getElementById('text-sub-input').value = `${(nameArray[2] || nameArray[1] || '').trim().toUpperCase()} | ${Math.abs(lat).toFixed(4)}° ${latDir}, ${Math.abs(lon).toFixed(4)}° ${lonDir}`;
+                // A deliberate new search always wins over a previous manual coordinate
+                // tweak - the person picked a new place, so the GPS field should reflect
+                // it and auto-sync should resume tracking the map from here on.
+                coordsManuallyEdited = false;
+                document.getElementById('text-coords-input').value = formatCoords(lon, lat);
                 
                 resultsBox.style.display = 'none';
                 executeVectorStyleOverrides();
@@ -601,7 +656,7 @@ function processExportPipeline() {
         try {
             const originalCanvas = map.getCanvas();
             const textVisible = document.getElementById('text-visible-toggle').checked;
-            const textLayoutMode = document.getElementById('text-layout-mode').value; // 'banner' | 'overlay-card' | 'overlay-banner' | 'overlay-compact'
+            const textLayoutMode = document.getElementById('text-layout-mode').value; // 'banner' | 'overlay-text' | 'overlay-banner' | 'overlay-compact'
             const softEdgeToggle = document.getElementById('style-soft-edges').checked;
             const vignetteIntensity = parseInt(document.getElementById('vignette-intensity').value);
             const labelBlockHeightSrc = textVisible ? 75 : 0;
@@ -615,7 +670,7 @@ function processExportPipeline() {
             const mainTextClass = document.getElementById('color-text-main').value;
             const subTextClass = document.getElementById('color-text-sub').value;
             const titleValue = document.getElementById('text-main-input').value.toUpperCase();
-            const subtitleValue = document.getElementById('text-sub-input').value.toUpperCase();
+            const subtitleValue = composeSubtitleText().toUpperCase();
             const fontSelected = document.getElementById('font-select').value;
             const fontSizeMainSrc = parseInt(document.getElementById('size-font-main').value);
             const letterSpacingSrc = parseInt(document.getElementById('letter-spacing-main').value);
@@ -673,49 +728,48 @@ function processExportPipeline() {
                     ctx.fillText(subtitleValue, exportCanvas.width / 2, bannerCenterY + (10 * multiplier));
                 } else {
                     // All three "overlay" modes share the same vertical placement (shifted
-                    // up off the bottom edge, sitting on top of the full-bleed map) and
-                    // differ only in the shape/width of the box behind the text - matching
-                    // the .floating / .floating-banner / .floating-compact CSS classes.
+                    // up off the bottom edge, sitting on top of the full-bleed map).
+                    // overlay-text draws no box at all - just the text. overlay-banner and
+                    // overlay-compact draw a box behind it, matching their CSS classes.
                     const overlayCenterY = exportCanvas.height - (60 * multiplier);
                     const titleY = overlayCenterY - (6 * multiplier);
                     const subtitleY = overlayCenterY + (14 * multiplier);
-                    const boxTop = overlayCenterY - (32 * multiplier);
-                    const boxHeight = 65 * multiplier;
-                    const paddingX = 24 * multiplier;
-                    const cornerRadius = 8 * multiplier;
 
-                    ctx.font = titleFont;
-                    ctx.letterSpacing = `${letterSpacingSrc * multiplier}px`;
-                    const titleWidth = ctx.measureText(titleValue).width;
-                    ctx.font = subFont;
-                    ctx.letterSpacing = `${2 * multiplier}px`;
-                    const subtitleWidth = ctx.measureText(subtitleValue).width;
-                    const contentWidth = Math.max(titleWidth, subtitleWidth);
+                    if (textLayoutMode !== 'overlay-text') {
+                        const boxTop = overlayCenterY - (32 * multiplier);
+                        const boxHeight = 65 * multiplier;
+                        const paddingX = 24 * multiplier;
+                        const cornerRadius = 8 * multiplier;
 
-                    let boxWidth, boxLeft, useRoundedCorners;
-                    if (textLayoutMode === 'overlay-banner') {
-                        boxWidth = exportCanvas.width;
-                        boxLeft = 0;
-                        useRoundedCorners = false;
-                    } else if (textLayoutMode === 'overlay-compact') {
-                        boxWidth = Math.min(contentWidth + paddingX * 2, exportCanvas.width * 0.85);
-                        boxLeft = (exportCanvas.width - boxWidth) / 2;
-                        useRoundedCorners = true;
-                    } else {
-                        // overlay-card: matches CSS min-width:70%
-                        boxWidth = Math.max(exportCanvas.width * 0.7, Math.min(contentWidth + paddingX * 2, exportCanvas.width * 0.92));
-                        boxLeft = (exportCanvas.width - boxWidth) / 2;
-                        useRoundedCorners = true;
+                        ctx.font = titleFont;
+                        ctx.letterSpacing = `${letterSpacingSrc * multiplier}px`;
+                        const titleWidth = ctx.measureText(titleValue).width;
+                        ctx.font = subFont;
+                        ctx.letterSpacing = `${2 * multiplier}px`;
+                        const subtitleWidth = ctx.measureText(subtitleValue).width;
+                        const contentWidth = Math.max(titleWidth, subtitleWidth);
+
+                        let boxWidth, boxLeft, useRoundedCorners;
+                        if (textLayoutMode === 'overlay-banner') {
+                            boxWidth = exportCanvas.width;
+                            boxLeft = 0;
+                            useRoundedCorners = false;
+                        } else {
+                            // overlay-compact: fits the text, matches CSS max-width:85%
+                            boxWidth = Math.min(contentWidth + paddingX * 2, exportCanvas.width * 0.85);
+                            boxLeft = (exportCanvas.width - boxWidth) / 2;
+                            useRoundedCorners = true;
+                        }
+
+                        ctx.fillStyle = textLayoutMode === 'overlay-banner' ? bgStyle : hexToRgba(bgStyle, 0.85);
+                        ctx.beginPath();
+                        if (useRoundedCorners && typeof ctx.roundRect === 'function') {
+                            ctx.roundRect(boxLeft, boxTop, boxWidth, boxHeight, cornerRadius);
+                        } else {
+                            ctx.rect(boxLeft, boxTop, boxWidth, boxHeight);
+                        }
+                        ctx.fill();
                     }
-
-                    ctx.fillStyle = textLayoutMode === 'overlay-banner' ? bgStyle : hexToRgba(bgStyle, 0.85);
-                    ctx.beginPath();
-                    if (useRoundedCorners && typeof ctx.roundRect === 'function') {
-                        ctx.roundRect(boxLeft, boxTop, boxWidth, boxHeight, cornerRadius);
-                    } else {
-                        ctx.rect(boxLeft, boxTop, boxWidth, boxHeight);
-                    }
-                    ctx.fill();
 
                     ctx.fillStyle = mainTextClass;
                     ctx.font = titleFont;

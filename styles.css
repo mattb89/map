@@ -126,17 +126,20 @@ body {
     width: 100%; 
 }
 
-#poster-label.floating { 
+/* Overlay - Text Only: no card/background at all - just the text, sitting directly
+   on top of the full-bleed map. */
+#poster-label.text-only { 
     bottom: 25px; 
     left: 50%; 
     transform: translateX(-50%); 
-    background: rgba(0,0,0,0.85); 
-    border-radius: 8px; 
-    border: 1px solid rgba(255,255,255,0.1); 
-    backdrop-filter: blur(5px); 
+    background: transparent; 
+    border: none; 
+    backdrop-filter: none; 
+    box-shadow: none; 
     height: auto; 
-    min-width: 70%; 
-    padding: 12px; 
+    width: auto; 
+    min-width: 0; 
+    padding: 0; 
 }
 
 /* Overlay - Full Banner: same "shifted up off the bottom edge" placement as the
