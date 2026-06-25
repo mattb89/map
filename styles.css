@@ -140,6 +140,7 @@ body {
     width: auto; 
     min-width: 0; 
     padding: 0; 
+    white-space: nowrap;
 }
 
 /* Overlay - Full Banner: same "shifted up off the bottom edge" placement as the
